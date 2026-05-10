@@ -1,0 +1,224 @@
+const mongoose = require('mongoose');
+
+const attachmentSchema = new mongoose.Schema({
+  fileName: String,
+  fileUrl: String,
+  fileType: {
+    type: String,
+    enum: ['image/png', 'image/jpeg', 'application/pdf']
+  },
+  fileSize: Number,
+  publicId: String,
+  uploadedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Schema for size quantities within a color - EXACTLY like cart
+const sizeQuantitySchema = new mongoose.Schema({
+  size: String,
+  quantity: {
+    type: Number,
+    default: 0
+  },
+   isAvailable: {  // ADD THIS - size availability status
+    type: Boolean,
+    default: true
+  }
+}, { _id: false });
+
+// Schema for color with its size quantities - EXACTLY like cart
+const colorDetailSchema = new mongoose.Schema({
+  color: {
+    code: String,
+    name: String
+  },
+  sizeQuantities: [sizeQuantitySchema],
+   quantity: {
+    type: Number,
+    default: 0
+  },
+  totalForColor: {
+    type: Number,
+    default: 0
+  },
+   totalQuantity: {  // Add this for compatibility
+    type: Number,
+    default: 0
+  },
+   unitPrice: {  // ADD THIS - per color unit price
+    type: Number,
+    default: 0
+  },
+   isAvailable: {  // ADD THIS - color availability status
+    type: Boolean,
+    default: true
+  }
+ 
+}, { _id: false });
+
+// Main product item schema - ONE per product with multiple colors - EXACTLY like cart
+const productItemSchema = new mongoose.Schema({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
+  },
+  productName: {
+    type: String,
+    required: true
+  },
+   orderUnit: {  // ← ADD THIS FIELD
+    type: String,
+    enum: ['piece', 'kg', 'ton'],
+    default: 'piece'
+  },
+  colors: [colorDetailSchema],
+  totalQuantity: {
+    type: Number,
+    default: 0
+  },
+  unitPrice: {
+    type: Number,
+    required: true
+  },
+  moq: {
+    type: Number,
+    required: true
+  },
+  productImage: String,
+  specialInstructions: {  // Product-level special instructions
+    type: String,
+    default: ''
+  },
+    isAvailable: {  // ADD THIS - product availability status
+    type: Boolean,
+    default: true
+  },
+  adminNote: {  // ADD THIS - admin note (optional, you said you don't need it but keeping for completeness)
+    type: String,
+    default: ''
+  }
+});
+
+const internalNoteSchema = new mongoose.Schema({
+  note: String,
+  addedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  addedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const inquirySchema = new mongoose.Schema({
+  inquiryNumber: {
+    type: String,
+    unique: true
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  userDetails: {
+    companyName: String,
+    contactPerson: String,
+    email: String,
+    phone: String,
+    whatsapp: String,
+    country: String,
+    address: String,
+    city: String,
+    zipCode: String
+  },
+  items: [productItemSchema], // Array of products, each with multiple colors
+  specialInstructions: String, // Global inquiry-level instructions
+  adminNote: {  // ADD THIS - internal admin note
+    type: String,
+    default: ''
+  },
+  attachments: [attachmentSchema],
+  internalNotes: [internalNoteSchema],
+  totalItems: {
+    type: Number,
+    default: 0
+  },
+  totalQuantity: {
+    type: Number,
+    default: 0
+  },
+  subtotal: {
+    type: Number,
+    default: 0
+  },
+  status: {
+    type: String,
+    enum: ['submitted', 'quoted', 'accepted', 'invoiced',  'cancelled'],
+    default: 'submitted'
+  }
+}, {
+  timestamps: true
+});
+
+// Pre-save hook to generate inquiry number
+// inquirySchema.pre('save', async function() {
+//   if (this.isNew && !this.inquiryNumber) {
+//     const date = new Date();
+//     const year = date.getFullYear().toString().slice(-2);
+//     const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    
+//     const count = await mongoose.model('Inquiry').countDocuments({
+//       inquiryNumber: { $regex: `^INQ-${year}${month}-` }
+//     });
+    
+//     this.inquiryNumber = `INQ-${year}${month}-${(count + 1).toString().padStart(4, '0')}`;
+//   }
+// });
+// Pre-save hook to generate inquiry number
+// Pre-save hook to generate inquiry number - CORRECT ASYNC PATTERN
+inquirySchema.pre('save', async function() {
+  // Only generate if this is a new document and inquiryNumber is not set
+  if (this.isNew && !this.inquiryNumber) {
+    try {
+      const date = new Date();
+      const year = date.getFullYear().toString().slice(-2);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      
+      const prefix = `INQ-${year}${month}-`;
+      
+      // Find the highest existing inquiry number for this month
+      const lastInquiry = await mongoose.model('Inquiry')
+        .findOne({ 
+          inquiryNumber: { $regex: `^${prefix}` } 
+        })
+        .sort({ inquiryNumber: -1 })
+        .select('inquiryNumber');
+      
+      let nextNumber = 1;
+      if (lastInquiry && lastInquiry.inquiryNumber) {
+        const parts = lastInquiry.inquiryNumber.split('-');
+        if (parts.length === 3) {
+          const lastNumber = parseInt(parts[2]);
+          if (!isNaN(lastNumber)) {
+            nextNumber = lastNumber + 1;
+          }
+        }
+      }
+      
+      this.inquiryNumber = `${prefix}${nextNumber.toString().padStart(4, '0')}`;
+      
+      console.log(`Generated inquiry number: ${this.inquiryNumber}`);
+    } catch (error) {
+      console.error('Error in inquiry number generation:', error);
+      throw error; // This will reject the save promise
+    }
+  }
+});
+
+module.exports = mongoose.model('Inquiry', inquirySchema);
+
+// module.exports = mongoose.model('Inquiry', inquirySchema);

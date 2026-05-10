@@ -1,0 +1,233 @@
+
+
+
+const mongoose = require('mongoose');
+
+const invoiceItemColorSchema = new mongoose.Schema({
+  color: {
+    code: String,
+    name: String
+  },
+  sizeQuantities: [{
+    size: String,
+    quantity: Number
+  }],
+   quantity: {  // ← ADD THIS for weight-based products
+    type: Number,
+    default: 0
+  },
+  totalForColor: Number,
+  unitPrice: {  // ← ADD THIS
+    type: Number,
+    default: 0
+  }
+}, { _id: false });
+
+const invoiceItemSchema = new mongoose.Schema({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
+  },
+  productName: String,
+  orderUnit: {  // ← ADD THIS
+    type: String,
+    enum: ['piece', 'kg', 'ton'],
+    default: 'piece'
+  },
+  colors: [invoiceItemColorSchema],
+  totalQuantity: Number,
+  unitPrice: Number,
+  moq: Number,
+  productImage: String,
+  total: Number
+}, { _id: false });
+
+const bankDetailsSchema = new mongoose.Schema({
+  bankName: String,
+  accountName: String,
+  accountNumber: String,
+  accountType: String,
+  routingNumber: String,
+  swiftCode: String,
+  iban: String,
+  bankAddress: String
+}, { _id: false });
+
+const bankingTermSchema = new mongoose.Schema({
+  title: String,
+  value: String
+}, { _id: false });
+
+const customFieldSchema = new mongoose.Schema({
+  fieldName: String,
+  fieldValue: String
+}, { _id: false });
+
+const invoiceSchema = new mongoose.Schema({
+  invoiceNumber: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  inquiryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Inquiry'
+  },
+  inquiryNumber: {
+    type: String
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  customer: {
+    companyName: String,
+    contactPerson: String,
+    email: String,
+    phone: String,
+    whatsapp: String,
+    billingAddress: String,
+    billingCity: String,
+    billingZipCode: String,
+    billingCountry: String,
+    shippingAddress: String,
+    shippingCity: String,
+    shippingZipCode: String,
+    shippingCountry: String
+  },
+  company: {
+    logo: String,
+    logoPublicId: String,
+    companyName: String,
+    contactPerson: String,
+    email: String,
+    phone: String,
+    address: String
+  },
+  bankDetails: bankDetailsSchema,
+   bankingTerms: [bankingTermSchema],
+  items: [invoiceItemSchema],
+  
+  // Invoice details
+  invoiceDate: {
+    type: Date,
+    default: Date.now
+  },
+  dueDate: Date,
+  
+  // Calculations
+  subtotal: Number,
+  vatPercentage: Number,
+  vatAmount: Number,
+  totalAfterVat: Number,
+  discountPercentage: Number,
+  discountAmount: Number,
+  totalAfterDiscount: Number,
+  shippingCost: Number,
+  finalTotal: Number,
+  amountPaid: {
+    type: Number,
+    default: 0
+  },
+  dueAmount: Number,
+
+    paidPercentage: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  unpaidPercentage: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  
+  // Status fields
+  paymentStatus: {
+    type: String,
+    enum:  ['paid', 'partial', 'unpaid', 'overpaid', 'cancelled'],
+    default: 'unpaid'
+  },
+  // status: {
+  //   type: String,
+  //   enum: ['draft', 'sent', 'paid', 'partial', 'unpaid', 'cancelled', 'overdue'],
+  //   default: 'draft'
+  // },
+  
+  // Additional info
+  notes: String,
+  terms: String,
+  customFields: [customFieldSchema],
+  
+  // Tracking
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true // This will automatically manage createdAt and updatedAt
+});
+
+// Pre-save hook to generate invoice number - FIXED with next parameter
+// Pre-save hook to generate invoice number - Alternative version without next
+// models/Invoice.js
+invoiceSchema.pre('save', async function() {
+  try {
+    if (this.isNew) {
+      // If invoiceNumber is already set (from frontend), validate it's correct
+      if (this.invoiceNumber) {
+        const date = new Date();
+        const year = date.getFullYear().toString().slice(-2);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const expectedPrefix = `INV-${year}${month}-`;
+        
+        // Check if it has the correct prefix
+        if (!this.invoiceNumber.startsWith(expectedPrefix)) {
+          // If not, generate a new one
+          const count = await mongoose.model('Invoice').countDocuments({
+            invoiceNumber: { $regex: `^${expectedPrefix}` }
+          });
+          this.invoiceNumber = `${expectedPrefix}${(count + 1).toString().padStart(4, '0')}`;
+        }
+      } else {
+        // If no invoice number, generate one
+        const date = new Date();
+        const year = date.getFullYear().toString().slice(-2);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        
+        const count = await mongoose.model('Invoice').countDocuments({
+          invoiceNumber: { $regex: `^INV-${year}${month}-` }
+        });
+        
+        this.invoiceNumber = `INV-${year}${month}-${(count + 1).toString().padStart(4, '0')}`;
+      }
+    }
+    this.updatedAt = new Date();
+  } catch (error) {
+    throw error;
+  }
+});
+
+
+// Index for better query performance
+// invoiceSchema.index({ invoiceNumber: 1 });
+invoiceSchema.index({ userId: 1 });
+invoiceSchema.index({ inquiryId: 1 });
+invoiceSchema.index({ status: 1 });
+invoiceSchema.index({ paymentStatus: 1 });
+invoiceSchema.index({ createdAt: -1 });
+
+module.exports = mongoose.model('Invoice', invoiceSchema);
