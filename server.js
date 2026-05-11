@@ -38,9 +38,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5000',
-  'https://jutecraftify.netlify.app',
 
-  'https://jutecraftify.com',
   process.env.FRONTEND_URL // Keep this for flexibility
 ].filter(Boolean); // Remove any undefined values
 

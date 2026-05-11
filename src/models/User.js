@@ -80,11 +80,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // businessType: {
-  //   type: String,
-  //   enum: ['Retailer', 'Wholesaler', 'Distributor', 'Manufacturer', 'E-commerce', 'Boutique', 'Other'],
-  //   default: 'Retailer'
-  // },
+
   isActive: {
     type: Boolean,
     default: true
