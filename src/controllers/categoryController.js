@@ -924,6 +924,170 @@ const deleteChildSubcategory = async (req, res) => {
     });
   }
 };
+// Add this function to get categories with products for toy store
+// @desc    Get categories with their products (for toy store frontend)
+// @route   GET /api/categories/with-products
+// @access  Public
+const getCategoriesWithProducts = async (req, res) => {
+  try {
+    const categories = await Category.find({ isActive: true })
+      .select('name slug image description subcategories productCount')
+      .sort({ name: 1 });
+
+    res.json({
+      success: true,
+      data: categories
+    });
+  } catch (error) {
+    console.error('Get categories with products error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Server error while fetching categories'
+    });
+  }
+};
+
+// @desc    Get products by category with pagination and filters
+// @route   GET /api/categories/:categoryId/products
+// @access  Public
+const getCategoryProducts = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const { 
+      page = 1, 
+      limit = 12,
+      subcategory,
+      childSubcategory,
+      ageGroup,
+      minPrice,
+      maxPrice,
+      sort = '-createdAt'
+    } = req.query;
+
+    const category = await Category.findById(categoryId);
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        error: 'Category not found'
+      });
+    }
+
+    // Filter products
+    let products = category.products.filter(p => p.isActive === true);
+    
+    // Filter by subcategory
+    if (subcategory) {
+      products = products.filter(p => p.subcategoryId?.toString() === subcategory);
+    }
+    
+    // Filter by child subcategory
+    if (childSubcategory) {
+      products = products.filter(p => p.childSubcategoryId?.toString() === childSubcategory);
+    }
+    
+    // Filter by age group
+    if (ageGroup) {
+      products = products.filter(p => p.ageGroup === ageGroup);
+    }
+    
+    // Filter by price range
+    const effectivePrice = (product) => product.discountPrice > 0 ? product.discountPrice : product.regularPrice;
+    
+    if (minPrice) {
+      products = products.filter(p => effectivePrice(p) >= parseFloat(minPrice));
+    }
+    if (maxPrice) {
+      products = products.filter(p => effectivePrice(p) <= parseFloat(maxPrice));
+    }
+    
+    // Sort products
+    switch (sort) {
+      case 'price_asc':
+        products.sort((a, b) => effectivePrice(a) - effectivePrice(b));
+        break;
+      case 'price_desc':
+        products.sort((a, b) => effectivePrice(b) - effectivePrice(a));
+        break;
+      case 'name_asc':
+        products.sort((a, b) => a.productName.localeCompare(b.productName));
+        break;
+      case 'rating_desc':
+        products.sort((a, b) => b.rating - a.rating);
+        break;
+      case 'newest':
+      default:
+        products.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        break;
+    }
+    
+    // Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const paginatedProducts = products.slice(skip, skip + parseInt(limit));
+    const total = products.length;
+    
+    res.json({
+      success: true,
+      data: {
+        category: {
+          _id: category._id,
+          name: category.name,
+          slug: category.slug,
+          description: category.description,
+          image: category.image
+        },
+        products: paginatedProducts,
+        pagination: {
+          total,
+          page: parseInt(page),
+          pages: Math.ceil(total / parseInt(limit)),
+          limit: parseInt(limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get category products error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Server error while fetching category products'
+    });
+  }
+};
+
+// @desc    Get category by slug with products
+// @route   GET /api/categories/slug/:slug
+// @access  Public
+const getCategoryBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const category = await Category.findOne({ slug, isActive: true })
+      .select('name slug description image subcategories products productCount');
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        error: 'Category not found'
+      });
+    }
+
+    // Only return active products
+    const activeProducts = category.products.filter(p => p.isActive === true);
+    
+    res.json({
+      success: true,
+      data: {
+        ...category.toObject(),
+        products: activeProducts,
+        activeProductCount: activeProducts.length
+      }
+    });
+  } catch (error) {
+    console.error('Get category by slug error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Server error while fetching category'
+    });
+  }
+};
 
 
 
@@ -948,6 +1112,9 @@ module.exports = {
    addChildSubcategory,
   getChildSubcategories,
   updateChildSubcategory,
-  deleteChildSubcategory
+  deleteChildSubcategory,
+  getCategoriesWithProducts,
+  getCategoryProducts,
+  getCategoryBySlug
 
 };

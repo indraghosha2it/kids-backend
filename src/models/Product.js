@@ -493,11 +493,15 @@ const productSchema = new mongoose.Schema({
   },
 
   // Delivery
-  deliveryInfo: {
-    type: String,
-    required: [true, 'Delivery information is required'],
-    trim: true
-  },
+ deliveryInfo: {
+  type: String,
+  required: [true, 'Delivery information is required'],
+  trim: true
+},
+codAvailable: {
+  type: Boolean,
+  default: false
+},
 
   // Media
   images: [{

@@ -24,6 +24,10 @@ const contactRoutes = require('./src/routes/contactRoutes');
 const promotionalRoutes = require('./src/routes/promotionalRoutes');
 const certificationRoutes = require('./src/routes/certificationRoutes');
 const popupRoutes = require('./src/routes/popupRoutes');
+const cartRoutes = require('./src/routes/cartRoutes');
+
+// Add after other route registrations
+
 
 // Initialize Express app
 const app = express();
@@ -55,7 +59,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-session-id']
 }));
 
 // Body parsers - ADD THESE FIRST
@@ -114,6 +118,7 @@ app.use('/api/contact', contactRoutes);
 app.use('/api', promotionalRoutes);
 app.use('/api/certifications', certificationRoutes);
 app.use('/api', popupRoutes);
+app.use('/api/cart', cartRoutes);
 
 // Basic test route
 app.get('/api/test', (req, res) => {
