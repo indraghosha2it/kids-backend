@@ -1,27 +1,33 @@
+
+
+
+
 // const express = require('express');
 // const router = express.Router();
-// const { protect } = require('../middleware/authMiddleware');
+// const { protect, optionalProtect } = require('../middleware/authMiddleware');
 // const {
 //   getCartItems,
 //   addToCart,
 //   updateCartItem,
 //   removeFromCart,
 //   clearCart,
-//   mergeCart
+//   mergeCart,
+//   checkCartStatus
 // } = require('../controllers/cartController');
 
-// // Public routes (with session support)
-// router.get('/', getCartItems);
-// router.post('/', addToCart);
-// router.put('/:itemId', updateCartItem);
-// router.delete('/:itemId', removeFromCart);
-// router.delete('/', clearCart);
+// // Use optionalProtect for routes that need to know if user is logged in
+// router.get('/', optionalProtect, getCartItems);
+// router.post('/', optionalProtect, addToCart);
 
-// // Protected routes
+// // Fully protected routes
+// router.put('/:itemId', protect, updateCartItem);
+// router.delete('/:itemId', protect, removeFromCart);
+// router.delete('/', protect, clearCart);
 // router.post('/merge', protect, mergeCart);
+// router.post('/check-status', optionalProtect, checkCartStatus);
+
 
 // module.exports = router;
-
 
 
 const express = require('express');
@@ -37,16 +43,13 @@ const {
   checkCartStatus
 } = require('../controllers/cartController');
 
-// Use optionalProtect for routes that need to know if user is logged in
+// Use optionalProtect for ALL routes - allows both guests and logged-in users
 router.get('/', optionalProtect, getCartItems);
 router.post('/', optionalProtect, addToCart);
-
-// Fully protected routes
-router.put('/:itemId', protect, updateCartItem);
-router.delete('/:itemId', protect, removeFromCart);
-router.delete('/', protect, clearCart);
-router.post('/merge', protect, mergeCart);
+router.put('/:itemId', optionalProtect, updateCartItem);
+router.delete('/:itemId', optionalProtect, removeFromCart);
+router.delete('/', optionalProtect, clearCart);
+router.post('/merge', protect, mergeCart); // This still needs full auth
 router.post('/check-status', optionalProtect, checkCartStatus);
-
 
 module.exports = router;

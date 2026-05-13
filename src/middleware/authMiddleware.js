@@ -135,10 +135,9 @@ const optionalProtect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-this');
       req.user = await User.findById(decoded.id).select('-password');
-      console.log('User authenticated in optional protect:', req.user?._id);
+      console.log('Optional auth - User found:', req.user?._id);
     } catch (error) {
-      // Just log but don't block
-      console.log('Optional auth failed:', error.message);
+      console.log('Optional auth - No valid token, continuing as guest');
       req.user = null;
     }
   } else {
