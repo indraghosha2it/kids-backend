@@ -29,6 +29,10 @@ const couponRoutes = require('./src/routes/couponRoutes');
 const wishlistRoutes = require('./src/routes/wishlistRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 
+const paymentRoutes = require('./src/routes/paymentRoutes');
+
+
+
 // Add with other routes
 
 
@@ -132,6 +136,8 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 
 app.use('/api/coupons', couponRoutes);
+
+app.use('/api/payments', paymentRoutes);
 
 // Basic test route
 app.get('/api/test', (req, res) => {

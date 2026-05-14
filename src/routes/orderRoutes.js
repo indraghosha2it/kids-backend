@@ -9,7 +9,8 @@ const {
   updatePaymentStatus,
   cancelOrder,
   getAllOrders,
-  getOrderStats
+  getOrderStats,
+  prepareOrder
 } = require('../controllers/orderController');
 
 // ============= PUBLIC ROUTES (with optional auth) =============
@@ -17,6 +18,7 @@ router.post('/', optionalProtect, createOrder);
 router.get('/', optionalProtect, getUserOrders);
 router.get('/:id', optionalProtect, getOrderById);
 router.put('/:id/cancel', optionalProtect, cancelOrder);
+router.post('/prepare', optionalProtect, prepareOrder);
 
 // ============= PROTECTED ROUTES (Admin/Moderator only) =============
 router.get('/admin/all', protect, isModeratorOrAdmin, getAllOrders);

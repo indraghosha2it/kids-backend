@@ -123,6 +123,16 @@ const orderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: {}
   },
+  transactionId: {
+  type: String,
+  default: null,
+  index: true
+},
+paymentSession: {
+  sessionKey: String,
+  gatewayUrl: String,
+  initiatedAt: Date
+},
   
  orderStatus: {
   type: String,

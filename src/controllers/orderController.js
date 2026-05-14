@@ -6,6 +6,147 @@ const Coupon = require('../models/Coupon');
 // @desc    Create new order
 // @route   POST /api/orders
 // @access  Public (with sessionId) or Private (with token)
+// const createOrder = async (req, res) => {
+//   try {
+//     const {
+//       items,
+//       subtotal,
+//       shippingCost,
+//       discount,
+//       total,
+//       paymentMethod,
+//       customerInfo,
+//       couponCode,
+//       couponDiscount,
+//       freeShipping
+//     } = req.body;
+
+//     const userId = req.user?._id;
+//     const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
+
+//     // Validate required fields
+//     if (!items || items.length === 0) {
+//       return res.status(400).json({ success: false, error: 'No items in order' });
+//     }
+
+//     if (!customerInfo || !customerInfo.fullName || !customerInfo.email || !customerInfo.phone || !customerInfo.address) {
+//       return res.status(400).json({ success: false, error: 'Customer information is incomplete' });
+//     }
+
+//     if (!paymentMethod) {
+//       return res.status(400).json({ success: false, error: 'Payment method is required' });
+//     }
+
+//     // Verify stock availability before creating order
+//     for (const item of items) {
+//       const product = await Product.findById(item.productId);
+//       if (!product) {
+//         return res.status(404).json({ success: false, error: `Product ${item.productName} not found` });
+//       }
+//       if (product.stockQuantity < item.quantity) {
+//         return res.status(400).json({ 
+//           success: false, 
+//           error: `Insufficient stock for ${product.productName}. Available: ${product.stockQuantity}` 
+//         });
+//       }
+//     }
+
+//     // Create order
+//     const order = new Order({
+//       userId: userId || null,
+//       sessionId: userId ? null : sessionId,
+//       items: items.map(item => ({
+//         productId: item.productId,
+//         productName: item.productName,
+//         productSlug: item.productSlug,
+//         image: item.image,
+//         regularPrice: item.regularPrice,
+//         discountPrice: item.discountPrice,
+//         quantity: item.quantity,
+//         stockQuantity: item.stockQuantity
+//       })),
+//       customerInfo: {
+//         fullName: customerInfo.fullName,
+//         email: customerInfo.email,
+//         phone: customerInfo.phone,
+//         whatsapp: customerInfo.whatsapp || '',
+//         address: customerInfo.address,
+//         city: customerInfo.city,
+//         zone: customerInfo.zone,
+//         area: customerInfo.area || '',
+//         zipCode: customerInfo.zipCode || '',
+//         country: customerInfo.country || 'Bangladesh',
+//         note: customerInfo.note || ''
+//       },
+//       subtotal,
+//       shippingCost,
+//       discount: discount || 0,
+//       total,
+//       paymentMethod,
+//       paymentStatus: paymentMethod === 'cod' ? 'pending' : 'pending',
+//       couponCode: couponCode || null,
+//       couponDiscount: couponDiscount || 0,
+//       freeShipping: freeShipping || false,
+//       orderStatus: 'placed',
+//       orderDate: new Date()
+//     });
+
+//     await order.save();
+
+//     // Update product stock quantities
+//     for (const item of items) {
+//       await Product.findByIdAndUpdate(
+//         item.productId,
+//         { $inc: { stockQuantity: -item.quantity, purchaseCount: item.quantity } }
+//       );
+//     }
+
+//     // Clear user's cart after successful order
+//     if (userId) {
+//       await Cart.findOneAndDelete({ userId });
+//     } else if (sessionId) {
+//       await Cart.findOneAndDelete({ sessionId });
+//     }
+
+//     // Record coupon usage if coupon was applied
+//     if (couponCode) {
+//       try {
+//         const coupon = await Coupon.findOne({ couponCode: couponCode.toUpperCase() });
+//         if (coupon) {
+//           coupon.totalUsedCount = (coupon.totalUsedCount || 0) + 1;
+//           coupon.usageRecords = coupon.usageRecords || [];
+//           coupon.usageRecords.push({
+//             userId: userId || null,
+//             orderId: order._id,
+//             usedAt: new Date(),
+//             discountAmount: couponDiscount || discount
+//           });
+//           await coupon.save();
+//         }
+//       } catch (couponError) {
+//         console.error('Error recording coupon usage:', couponError);
+//         // Don't fail the order if coupon recording fails
+//       }
+//     }
+
+//     // Populate order details for response
+//    res.status(201).json({
+//   success: true,
+//   data: order,
+//   orderId: order._id,
+//   message: 'Order placed successfully'
+// });
+
+//   } catch (error) {
+//     console.error('Create order error:', error);
+//     res.status(500).json({ success: false, error: error.message });
+//   }
+// };
+
+
+// @desc    Create new order (or create pending order for online payment)
+// @route   POST /api/orders
+// @access  Public (with sessionId) or Private (with token)
 const createOrder = async (req, res) => {
   try {
     const {
@@ -18,7 +159,9 @@ const createOrder = async (req, res) => {
       customerInfo,
       couponCode,
       couponDiscount,
-      freeShipping
+      freeShipping,
+      orderStatus = 'pending',  // Default to pending
+      saveOrder = true  // Default to true for COD
     } = req.body;
 
     const userId = req.user?._id;
@@ -37,7 +180,58 @@ const createOrder = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Payment method is required' });
     }
 
-    // Verify stock availability before creating order
+    // For online payment, we don't need to check stock or create order yet
+    // Just prepare the order data and return it
+    if (paymentMethod === 'online' && !saveOrder) {
+      // Just prepare the data without saving
+      const orderData = {
+        userId: userId || null,
+        sessionId: userId ? null : sessionId,
+        items: items.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          productSlug: item.productSlug,
+          image: item.image,
+          regularPrice: item.regularPrice,
+          discountPrice: item.discountPrice,
+          quantity: item.quantity,
+          stockQuantity: item.stockQuantity
+        })),
+        customerInfo: {
+          fullName: customerInfo.fullName,
+          email: customerInfo.email,
+          phone: customerInfo.phone,
+          whatsapp: customerInfo.whatsapp || '',
+          address: customerInfo.address,
+          city: customerInfo.city,
+          zone: customerInfo.zone,
+          area: customerInfo.area || '',
+          zipCode: customerInfo.zipCode || '',
+          country: customerInfo.country || 'Bangladesh',
+          note: customerInfo.note || ''
+        },
+        subtotal,
+        shippingCost,
+        discount: discount || 0,
+        total,
+        paymentMethod,
+        paymentStatus: 'pending',
+        orderStatus: 'pending',  // Not placed yet
+        couponCode: couponCode || null,
+        couponDiscount: couponDiscount || 0,
+        freeShipping: freeShipping || false,
+        orderDate: new Date()
+      };
+      
+      // Return the order data without saving
+      return res.status(200).json({
+        success: true,
+        data: orderData,
+        message: 'Order data prepared'
+      });
+    }
+
+    // For COD - Verify stock and create order
     for (const item of items) {
       const product = await Product.findById(item.productId);
       if (!product) {
@@ -84,10 +278,10 @@ const createOrder = async (req, res) => {
       total,
       paymentMethod,
       paymentStatus: paymentMethod === 'cod' ? 'pending' : 'pending',
+      orderStatus: orderStatus === 'pending' ? 'placed' : orderStatus,
       couponCode: couponCode || null,
       couponDiscount: couponDiscount || 0,
       freeShipping: freeShipping || false,
-      orderStatus: 'placed',
       orderDate: new Date()
     });
 
@@ -125,17 +319,15 @@ const createOrder = async (req, res) => {
         }
       } catch (couponError) {
         console.error('Error recording coupon usage:', couponError);
-        // Don't fail the order if coupon recording fails
       }
     }
 
-    // Populate order details for response
-   res.status(201).json({
-  success: true,
-  data: order,
-  orderId: order._id,
-  message: 'Order placed successfully'
-});
+    res.status(201).json({
+      success: true,
+      data: order,
+      orderId: order._id,
+      message: 'Order placed successfully'
+    });
 
   } catch (error) {
     console.error('Create order error:', error);
@@ -522,6 +714,88 @@ const getOrderStats = async (req, res) => {
   }
 };
 
+// @desc    Prepare order data without saving (for online payment)
+// @route   POST /api/orders/prepare
+// @access  Public (with sessionId) or Private (with token)
+const prepareOrder = async (req, res) => {
+  try {
+    const {
+      items,
+      subtotal,
+      shippingCost,
+      discount,
+      total,
+      paymentMethod,
+      customerInfo,
+      couponCode,
+      couponDiscount,
+      freeShipping
+    } = req.body;
+
+    const userId = req.user?._id;
+    const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
+
+    // Validate required fields
+    if (!items || items.length === 0) {
+      return res.status(400).json({ success: false, error: 'No items in order' });
+    }
+
+    if (!customerInfo || !customerInfo.fullName || !customerInfo.email || !customerInfo.phone || !customerInfo.address) {
+      return res.status(400).json({ success: false, error: 'Customer information is incomplete' });
+    }
+
+    // Prepare order data without saving
+    const orderData = {
+      userId: userId || null,
+      sessionId: userId ? null : sessionId,
+      items: items.map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        productSlug: item.productSlug,
+        image: item.image,
+        regularPrice: item.regularPrice,
+        discountPrice: item.discountPrice,
+        quantity: item.quantity,
+        stockQuantity: item.stockQuantity
+      })),
+      customerInfo: {
+        fullName: customerInfo.fullName,
+        email: customerInfo.email,
+        phone: customerInfo.phone,
+        whatsapp: customerInfo.whatsapp || '',
+        address: customerInfo.address,
+        city: customerInfo.city,
+        zone: customerInfo.zone,
+        area: customerInfo.area || '',
+        zipCode: customerInfo.zipCode || '',
+        country: customerInfo.country || 'Bangladesh',
+        note: customerInfo.note || ''
+      },
+      subtotal,
+      shippingCost,
+      discount: discount || 0,
+      total,
+      paymentMethod,
+      paymentStatus: 'pending',
+      orderStatus: 'pending',
+      couponCode: couponCode || null,
+      couponDiscount: couponDiscount || 0,
+      freeShipping: freeShipping || false,
+      orderDate: new Date()
+    };
+    
+    res.json({
+      success: true,
+      data: orderData,
+      message: 'Order data prepared'
+    });
+    
+  } catch (error) {
+    console.error('Prepare order error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 module.exports = {
   createOrder,
   getUserOrders,
@@ -530,5 +804,6 @@ module.exports = {
   updatePaymentStatus,
   cancelOrder,
   getAllOrders,
-  getOrderStats
+  getOrderStats,
+  prepareOrder
 };
