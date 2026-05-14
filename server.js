@@ -25,6 +25,11 @@ const promotionalRoutes = require('./src/routes/promotionalRoutes');
 const certificationRoutes = require('./src/routes/certificationRoutes');
 const popupRoutes = require('./src/routes/popupRoutes');
 const cartRoutes = require('./src/routes/cartRoutes');
+const couponRoutes = require('./src/routes/couponRoutes');
+const wishlistRoutes = require('./src/routes/wishlistRoutes');
+
+
+
 
 // Add after other route registrations
 
@@ -119,6 +124,9 @@ app.use('/api', promotionalRoutes);
 app.use('/api/certifications', certificationRoutes);
 app.use('/api', popupRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/wishlist', wishlistRoutes);
+
+app.use('/api/coupons', couponRoutes);
 
 // Basic test route
 app.get('/api/test', (req, res) => {

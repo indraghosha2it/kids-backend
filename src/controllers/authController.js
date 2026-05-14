@@ -15,7 +15,7 @@ const generateToken = (user) => {
       id: user._id, 
       email: user.email,
       role: user.role,
-      companyName: user.companyName
+      
     },
     process.env.JWT_SECRET || 'your-secret-key-change-this',
     { expiresIn: process.env.JWT_EXPIRE || '7d' }
@@ -27,297 +27,164 @@ const generateVerificationToken = () => {
   return crypto.randomBytes(32).toString('hex');
 };
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
+
+
 // const registerUser = async (req, res) => {
 //   try {
-//     console.log('📝 Registration request received');
-
-//     const {
-//       companyName,
-//       contactPerson,
-//       email,
-//       phone,
-//       whatsapp,
-//       country,
-//       address,
-//       city,
-//       zipCode,
-//       role,
+//     const { 
+  
+//       contactPerson, 
+//       email, 
+//       phone, 
+//       whatsapp, 
+//       country, 
+//       address, 
+//       city, 
+//       zipCode, 
 //       password,
-//       businessType
+//       role = 'customer' 
 //     } = req.body;
 
-//     // Validate required fields
-//     const missingFields = [];
-//     if (!companyName) missingFields.push('companyName');
-//     if (!contactPerson) missingFields.push('contactPerson');
-//     if (!email) missingFields.push('email');
-//     if (!phone) missingFields.push('phone');
-//     if (!country) missingFields.push('country');
-//     if (!address) missingFields.push('address');
-//     if (!city) missingFields.push('city');
-//     if (!zipCode) missingFields.push('zipCode');
-//     if (!password) missingFields.push('password');
-
-//     if (missingFields.length > 0) {
-//       return res.status(400).json({
-//         success: false,
-//         error: `Missing required fields: ${missingFields.join(', ')}`
-//       });
-//     }
-
-//     // Validate email format
-//     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//     if (!emailRegex.test(email)) {
-//       return res.status(400).json({
-//         success: false,
-//         error: 'Please provide a valid email address'
-//       });
-//     }
-
-//     // Validate password strength
-//     if (password.length < 8) {
-//       return res.status(400).json({
-//         success: false,
-//         error: 'Password must be at least 8 characters long'
-//       });
-//     }
-
 //     // Check if user already exists
-//     const userExists = await User.findOne({ email: email.toLowerCase() });
-//     if (userExists) {
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
 //       return res.status(400).json({
 //         success: false,
-//         error: 'User with this email already exists'
+//         error: 'User already exists with this email'
 //       });
 //     }
 
-//     // HASH PASSWORD HERE
+//     // Hash the password BEFORE saving
 //     const salt = await bcrypt.genSalt(10);
 //     const hashedPassword = await bcrypt.hash(password, salt);
-
-//     // Create verification token
-//     const verificationToken = generateVerificationToken();
-
-//     // Create new user with hashed password
-//     const user = new User({
-//       companyName,
-//       contactPerson,
-//       email: email.toLowerCase(),
-//       phone,
-//       whatsapp: whatsapp || '',
-//       country,
-//       address,
-//       city,
-//       zipCode,
-//       role: role || 'customer',
-//       password: hashedPassword, // Use pre-hashed password
-//       businessType: businessType || 'Retailer',
-//       emailVerificationToken: verificationToken,
-//       loginCount: 0,
-//       isActive: true,
-//       emailVerified: false
-//     });
-
-//     // Save user
-//     await user.save();
-
-//     console.log('✅ User created successfully:', user._id);
-
-//     // Generate token
-//     const token = generateToken(user);
-
-//     res.status(201).json({
-//       success: true,
-//       message: 'Registration successful! Please verify your email.',
-//       token,
-//       user: user.toJSON()
-//     });
-
-//   } catch (error) {
-//     console.error('❌ Registration error:', error);
-    
-//     // Handle duplicate key error
-//     if (error.code === 11000) {
-//       return res.status(400).json({
-//         success: false,
-//         error: 'Email already exists'
-//       });
-//     }
-
-//     // Handle validation errors
-//     if (error.name === 'ValidationError') {
-//       const messages = Object.values(error.errors).map(val => val.message);
-//       return res.status(400).json({
-//         success: false,
-//         error: messages.join(', ')
-//       });
-//     }
-
-//     res.status(500).json({
-//       success: false,
-//       error: error.message || 'Server error during registration'
-//     });
-//   }
-// };
-
-
-// @desc    Register a new user (Step 1: Send OTP)
-// @route   POST /api/auth/register
-// @access  Public
-// const registerUser = async (req, res) => {
-//   try {
-//     console.log('📝 Registration request received');
-
-//     const {
-//       companyName,
-//       contactPerson,
-//       email,
-//       phone,
-//       whatsapp,
-//       country,
-//       address,
-//       city,
-//       zipCode,
-//       role,
-//       password,
-//       businessType
-//     } = req.body;
-
-//     // Validate required fields
-//     const missingFields = [];
-//     if (!companyName) missingFields.push('companyName');
-//     if (!contactPerson) missingFields.push('contactPerson');
-//     if (!email) missingFields.push('email');
-//     if (!phone) missingFields.push('phone');
-//     if (!country) missingFields.push('country');
-//     if (!address) missingFields.push('address');
-//     if (!city) missingFields.push('city');
-//     if (!zipCode) missingFields.push('zipCode');
-//     if (!password) missingFields.push('password');
-
-//     if (missingFields.length > 0) {
-//       return res.status(400).json({
-//         success: false,
-//         error: `Missing required fields: ${missingFields.join(', ')}`
-//       });
-//     }
-
-//     // Validate email format
-//     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//     if (!emailRegex.test(email)) {
-//       return res.status(400).json({
-//         success: false,
-//         error: 'Please provide a valid email address'
-//       });
-//     }
-
-//     // Validate password strength
-//     if (password.length < 8) {
-//       return res.status(400).json({
-//         success: false,
-//         error: 'Password must be at least 8 characters long'
-//       });
-//     }
-
-//     // Check if user already exists
-//     const userExists = await User.findOne({ email: email.toLowerCase() });
-//     if (userExists) {
-//       // If user exists but not verified, delete old record
-//       if (userExists.registrationStatus === 'pending') {
-//         await User.deleteOne({ _id: userExists._id });
-//         console.log('🗑️ Deleted unverified user:', email);
-//       } else {
-//         return res.status(400).json({
-//           success: false,
-//           error: 'User with this email already exists'
-//         });
-//       }
-//     }
 
 //     // Generate OTP
 //     const otp = generateOTP();
 //     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-//     // Hash password
-//     const salt = await bcrypt.genSalt(10);
-//     const hashedPassword = await bcrypt.hash(password, salt);
-
-//     // Create new user with pending status
-//     const user = new User({
-//       companyName,
+//     // Create user with hashed password
+//     const user = await User.create({
+   
 //       contactPerson,
-//       email: email.toLowerCase(),
+//       email,
 //       phone,
-//       whatsapp: whatsapp || '',
+//       whatsapp,
 //       country,
 //       address,
 //       city,
 //       zipCode,
-//       role: role || 'customer',
-//       password: hashedPassword,
-//       businessType: businessType || 'Retailer',
-//       isActive: false,
-//       emailVerified: false,
+//       password: hashedPassword, // Use the hashed password here
+//       role,
+//       otp,
+//       otpExpiry,
 //       registrationStatus: 'pending',
-//       otp: otp,
-//       otpExpiry: otpExpiry
+//       emailVerified: false
 //     });
 
-//     // Save user
-//     await user.save();
-
 //     // Send OTP email
-//     try {
-//       await sendOTPEmail(email, otp, companyName);
-//     } catch (emailError) {
-//       // If email fails, delete the user and return error
-//       await User.deleteOne({ _id: user._id });
-//       return res.status(500).json({
-//         success: false,
-//         error: 'Failed to send verification email. Please try again.'
-//       });
-//     }
-
-//     console.log('✅ OTP sent successfully to:', email);
+//     await sendOTPEmail(email, otp, companyName);
 
 //     res.status(201).json({
 //       success: true,
-//       message: 'Registration initiated! Please verify your email with the OTP sent.',
-//       email: email,
-//       requiresOTP: true
+//       message: 'Registration initiated. Please check your email for OTP.',
+//       data: {
+//         email: user.email,
+//         companyName: user.companyName
+//       }
 //     });
 
 //   } catch (error) {
-//     console.error('❌ Registration error:', error);
-    
-//     if (error.code === 11000) {
-//       return res.status(400).json({
-//         success: false,
-//         error: 'Email already exists'
-//       });
-//     }
-
-//     if (error.name === 'ValidationError') {
-//       const messages = Object.values(error.errors).map(val => val.message);
-//       return res.status(400).json({
-//         success: false,
-//         error: messages.join(', ')
-//       });
-//     }
-
+//     console.error('Registration error:', error);
 //     res.status(500).json({
 //       success: false,
-//       error: error.message || 'Server error during registration'
+//       error: error.message || 'Registration failed'
 //     });
 //   }
 // };
+
+
+// Add this import at the top of authController.js
+
+// Then update the verifyOTP function:
+
+// const registerUser = async (req, res) => {
+//   try {
+//     const { 
+//       contactPerson, 
+//       email, 
+//       phone, 
+//       whatsapp, 
+//       country, 
+//       address, 
+//       city, 
+//       zipCode, 
+//       password,
+//       role = 'customer' 
+//     } = req.body;
+
+//     // Check if user already exists
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//       return res.status(400).json({
+//         success: false,
+//         error: 'User already exists with this email'
+//       });
+//     }
+
+//     // Hash the password BEFORE saving
+//     const salt = await bcrypt.genSalt(10);
+//     const hashedPassword = await bcrypt.hash(password, salt);
+
+//     // Generate OTP
+//     const otp = generateOTP();
+//     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+//     // Create user with hashed password
+//     const user = await User.create({
+//       contactPerson,
+//       email,
+//       phone,
+//       whatsapp,
+//       country,
+//       address,
+//       city,
+//       zipCode,
+//       password: hashedPassword,
+//       role,
+//       otp,
+//       otpExpiry,
+//       registrationStatus: 'pending',
+//       emailVerified: false
+//     });
+
+//     // ✅ FIXED: Use contactPerson instead of companyName
+//     await sendOTPEmail(email, otp, contactPerson);
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Registration initiated. Please check your email for OTP.',
+//       data: {
+//         email: user.email,
+//         // ✅ FIXED: Use contactPerson instead of companyName
+//         contactPerson: user.contactPerson
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Registration error:', error);
+//     res.status(500).json({
+//       success: false,
+//       error: error.message || 'Registration failed'
+//     });
+//   }
+// };
+
+
+
+
 const registerUser = async (req, res) => {
   try {
     const { 
-      companyName, 
       contactPerson, 
       email, 
       phone, 
@@ -347,9 +214,14 @@ const registerUser = async (req, res) => {
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+    // ✅ CHECK IF ALL REQUIRED FIELDS ARE FILLED AT REGISTRATION
+    const requiredFields = ['contactPerson', 'phone', 'whatsapp', 'country', 'address', 'city', 'zipCode'];
+    const allFieldsFilled = requiredFields.every(field => 
+      req.body[field] && req.body[field].toString().trim() !== ''
+    );
+
     // Create user with hashed password
     const user = await User.create({
-      companyName,
       contactPerson,
       email,
       phone,
@@ -358,23 +230,26 @@ const registerUser = async (req, res) => {
       address,
       city,
       zipCode,
-      password: hashedPassword, // Use the hashed password here
+      password: hashedPassword,
       role,
       otp,
       otpExpiry,
       registrationStatus: 'pending',
-      emailVerified: false
+      emailVerified: false,
+      isActive: true,
+      profileCompleted: allFieldsFilled  // ✅ SET THIS BASED ON FIELDS
     });
 
     // Send OTP email
-    await sendOTPEmail(email, otp, companyName);
+    await sendOTPEmail(email, otp, contactPerson);
 
     res.status(201).json({
       success: true,
       message: 'Registration initiated. Please check your email for OTP.',
       data: {
         email: user.email,
-        companyName: user.companyName
+        contactPerson: user.contactPerson,
+        profileCompleted: user.profileCompleted  // ✅ Return this to frontend
       }
     });
 
@@ -387,9 +262,6 @@ const registerUser = async (req, res) => {
   }
 };
 
-// @desc    Verify OTP and complete registration
-// @route   POST /api/auth/verify-otp
-// @access  Public
 // const verifyOTP = async (req, res) => {
 //   try {
 //     const { email, otp } = req.body;
@@ -440,13 +312,18 @@ const registerUser = async (req, res) => {
 //     user.otpExpiry = undefined;
 //     await user.save();
 
+//     // 🆕 SEND WELCOME EMAIL (non-blocking - don't await if you don't want to delay response)
+//     // Send welcome email in background - don't block the response
+//     sendWelcomeEmail(user.email, user.contactPerson, null)
+//       .catch(err => console.error('Background welcome email failed:', err));
+
 //     // Generate token
 //     const token = jwt.sign(
 //       { 
 //         id: user._id, 
 //         email: user.email,
 //         role: user.role,
-//         companyName: user.companyName
+        
 //       },
 //       process.env.JWT_SECRET || 'your-secret-key-change-this',
 //       { expiresIn: process.env.JWT_EXPIRE || '7d' }
@@ -470,9 +347,9 @@ const registerUser = async (req, res) => {
 //   }
 // };
 
-// Add this import at the top of authController.js
-
-// Then update the verifyOTP function:
+// @desc    Resend OTP
+// @route   POST /api/auth/resend-otp
+// @access  Public
 const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -499,7 +376,6 @@ const verifyOTP = async (req, res) => {
 
     // Check if OTP is expired
     if (user.otpExpiry < new Date()) {
-      // Delete expired user
       await User.deleteOne({ _id: user._id });
       return res.status(400).json({
         success: false,
@@ -515,17 +391,24 @@ const verifyOTP = async (req, res) => {
       });
     }
 
+    // ✅ Check again in case fields were updated before verification
+    const requiredFields = ['contactPerson', 'phone', 'whatsapp', 'country', 'address', 'city', 'zipCode'];
+    const allFieldsFilled = requiredFields.every(field => 
+      user[field] && user[field].toString().trim() !== ''
+    );
+
     // Update user status
     user.isActive = true;
     user.emailVerified = true;
     user.registrationStatus = 'completed';
     user.otp = undefined;
     user.otpExpiry = undefined;
+    user.profileCompleted = allFieldsFilled;  // ✅ Preserve or update the status
+    
     await user.save();
 
-    // 🆕 SEND WELCOME EMAIL (non-blocking - don't await if you don't want to delay response)
-    // Send welcome email in background - don't block the response
-    sendWelcomeEmail(user.email, user.companyName || user.contactPerson, null)
+    // Send welcome email
+    sendWelcomeEmail(user.email, user.contactPerson, null)
       .catch(err => console.error('Background welcome email failed:', err));
 
     // Generate token
@@ -534,7 +417,6 @@ const verifyOTP = async (req, res) => {
         id: user._id, 
         email: user.email,
         role: user.role,
-        companyName: user.companyName
       },
       process.env.JWT_SECRET || 'your-secret-key-change-this',
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
@@ -558,9 +440,6 @@ const verifyOTP = async (req, res) => {
   }
 };
 
-// @desc    Resend OTP
-// @route   POST /api/auth/resend-otp
-// @access  Public
 const resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
@@ -594,7 +473,7 @@ const resendOTP = async (req, res) => {
     await user.save();
 
     // Send new OTP email
-    await sendOTPEmail(email, newOTP, user.companyName);
+    await sendOTPEmail(email, newOTP, user.contactPerson);
 
     console.log('✅ New OTP sent to:', email);
 
@@ -669,7 +548,7 @@ const loginUser = async (req, res) => {
         id: user._id, 
         email: user.email,
         role: user.role,
-        companyName: user.companyName
+        
       },
       process.env.JWT_SECRET || 'your-secret-key-change-this',
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
@@ -695,78 +574,6 @@ const loginUser = async (req, res) => {
 
 
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
-// const loginUser = async (req, res) => {
-//   try {
-//     const { email, password } = req.body;
-
-//     console.log('🔐 Login attempt for email:', email);
-
-//     // Validate input
-//     if (!email || !password) {
-//       return res.status(400).json({
-//         success: false,
-//         error: 'Please provide email and password'
-//       });
-//     }
-
-//     // Find user by email and include password field
-//     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
-
-//     if (!user) {
-//       console.log('❌ User not found:', email);
-//       return res.status(401).json({
-//         success: false,
-//         error: 'Invalid credentials'
-//       });
-//     }
-
-//     // Check if user is active
-//     if (!user.isActive) {
-//       console.log('❌ Account deactivated:', email);
-//       return res.status(401).json({
-//         success: false,
-//         error: 'Account is deactivated. Please contact support.'
-//       });
-//     }
-
-//     // Check password
-//     const isPasswordMatch = await user.comparePassword(password);
-//     if (!isPasswordMatch) {
-//       console.log('❌ Invalid password for:', email);
-//       return res.status(401).json({
-//         success: false,
-//         error: 'Invalid credentials'
-//       });
-//     }
-
-//     // Update last login
-//     user.lastLogin = new Date();
-//     user.loginCount += 1;
-//     await user.save();
-
-//     // Generate token
-//     const token = generateToken(user);
-
-//     console.log('✅ Login successful for:', email);
-
-//     res.json({
-//       success: true,
-//       message: 'Login successful',
-//       token,
-//       user: user.toJSON()
-//     });
-
-//   } catch (error) {
-//     console.error('❌ Login error:', error);
-//     res.status(500).json({
-//       success: false,
-//       error: 'Server error during login'
-//     });
-//   }
-// };
 
 // @desc    Get current user profile
 // @route   GET /api/auth/me
@@ -795,58 +602,7 @@ const getMe = async (req, res) => {
   }
 };
 
-// @desc    Update user profile
-// @route   PUT /api/auth/profile
-// @access  Private
-// const updateProfile = async (req, res) => {
-//   try {
-//     const updates = {};
-//     const allowedUpdates = [
-//       'companyName', 
-//       'contactPerson', 
-//       'phone', 
-//       'whatsapp', 
-//       'country', 
-//       'address', 
-//       'city', 
-//       'zipCode', 
-//       'businessType',
-//       'notificationPreferences'
-//     ];
-    
-//     allowedUpdates.forEach(field => {
-//       if (req.body[field] !== undefined) {
-//         updates[field] = req.body[field];
-//       }
-//     });
 
-//     const user = await User.findByIdAndUpdate(
-//       req.user.id,
-//       updates,
-//       { new: true, runValidators: true }
-//     );
-
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         error: 'User not found'
-//       });
-//     }
-
-//     res.json({
-//       success: true,
-//       message: 'Profile updated successfully',
-//       user: user.toJSON()
-//     });
-
-//   } catch (error) {
-//     console.error('❌ Update profile error:', error);
-//     res.status(500).json({
-//       success: false,
-//       error: 'Server error'
-//     });
-//   }
-// };
 
 // @desc    Update user profile
 // @route   PUT /api/auth/profile
@@ -855,7 +611,7 @@ const updateProfile = async (req, res) => {
   try {
     const updates = {};
     const allowedUpdates = [
-      'companyName', 
+      
       'contactPerson', 
       'phone', 
       'whatsapp', 
@@ -934,7 +690,7 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// @desc    Change password
+
 // @route   PUT /api/auth/change-password
 // @access  Private
 // const changePassword = async (req, res) => {
@@ -1090,10 +846,6 @@ const verifyEmail = async (req, res) => {
 
 
 
-// Update your forgotPassword function to use the new service
-// @desc    Forgot password - Send OTP
-// @route   POST /api/auth/forgot-password
-// @access  Public
 // @desc    Forgot password - Send OTP
 // @route   POST /api/auth/forgot-password
 // @access  Public
@@ -1128,7 +880,7 @@ const forgotPassword = async (req, res) => {
 
     // Send password reset OTP email using the dedicated service
     try {
-      await sendPasswordResetOTP(email, otp, user.contactPerson || user.companyName || 'User');
+      await sendPasswordResetOTP(email, otp, user.contactPerson  || 'User');
     } catch (emailError) {
       // Clear OTP if email fails
       user.resetPasswordOTP = undefined;
@@ -1359,7 +1111,7 @@ const googleAuth = async (req, res) => {
       const hashedPassword = await bcrypt.hash(randomPassword, salt);
 
       user = new User({
-        companyName: req.body.companyName || `${contactPerson}'s Company`, // They can update later
+
         contactPerson: contactPerson,
         email: email.toLowerCase(),
         phone: '', // Will need to be filled later
@@ -1388,7 +1140,7 @@ const googleAuth = async (req, res) => {
         id: user._id, 
         email: user.email,
         role: user.role,
-        companyName: user.companyName
+        
       },
       process.env.JWT_SECRET || 'your-secret-key-change-this',
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
@@ -1431,73 +1183,7 @@ const googleAuth = async (req, res) => {
   }
 };
 
-// @desc    Complete profile after Google signup
-// @route   POST /api/auth/complete-profile
-// @access  Private
-// const completeProfile = async (req, res) => {
-//   try {
-//     const {
-//       companyName,
-//       phone,
-//       whatsapp,
-//       country,
-//       address,
-//       city,
-//       zipCode,
-//       businessType
-//     } = req.body;
 
-//     // Validate required fields
-//     const missingFields = [];
-//     if (!companyName) missingFields.push('companyName');
-//     if (!phone) missingFields.push('phone');
-//     if (!country) missingFields.push('country');
-//     if (!address) missingFields.push('address');
-//     if (!city) missingFields.push('city');
-//     if (!zipCode) missingFields.push('zipCode');
-
-//     if (missingFields.length > 0) {
-//       return res.status(400).json({
-//         success: false,
-//         error: `Missing required fields: ${missingFields.join(', ')}`
-//       });
-//     }
-
-//     const user = await User.findById(req.user.id);
-
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         error: 'User not found'
-//       });
-//     }
-
-//     // Update user profile
-//     user.companyName = companyName;
-//     user.phone = phone;
-//     user.whatsapp = whatsapp || '';
-//     user.country = country;
-//     user.address = address;
-//     user.city = city;
-//     user.zipCode = zipCode;
-//     user.businessType = businessType || user.businessType;
-
-//     await user.save();
-
-//     res.json({
-//       success: true,
-//       message: 'Profile completed successfully',
-//       user: user.toJSON()
-//     });
-
-//   } catch (error) {
-//     console.error('❌ Complete profile error:', error);
-//     res.status(500).json({
-//       success: false,
-//       error: 'Failed to complete profile'
-//     });
-//   }
-// };
 
 // @desc    Complete profile after Google signup or incomplete registration
 // @route   POST /api/auth/complete-profile
@@ -1505,7 +1191,7 @@ const googleAuth = async (req, res) => {
 const completeProfile = async (req, res) => {
   try {
     const {
-      companyName,
+     
       contactPerson,
       phone,
       whatsapp,
@@ -1517,7 +1203,7 @@ const completeProfile = async (req, res) => {
     } = req.body;
 
     // Validate required fields (all are required for complete profile)
-    const requiredFields = ['companyName', 'contactPerson', 'phone', 'whatsapp', 'country', 'address', 'city', 'zipCode'];
+    const requiredFields = ['contactPerson', 'phone', 'whatsapp', 'country', 'address', 'city', 'zipCode'];
     const missingFields = requiredFields.filter(field => !req.body[field] || req.body[field] === '');
     
     if (missingFields.length > 0) {
@@ -1538,7 +1224,7 @@ const completeProfile = async (req, res) => {
     }
 
     // Update all required fields
-    user.companyName = companyName;
+    
     user.contactPerson = contactPerson;
     user.phone = phone;
     user.whatsapp = whatsapp;
@@ -1566,7 +1252,7 @@ const completeProfile = async (req, res) => {
         id: user._id, 
         email: user.email,
         role: user.role,
-        companyName: user.companyName
+        
       },
       process.env.JWT_SECRET || 'your-secret-key-change-this',
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
@@ -1631,7 +1317,7 @@ const googleSignup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(randomPassword, salt);
 
     user = new User({
-      companyName: `${contactPerson}'s Company`, // Placeholder
+     
       contactPerson: contactPerson,
       email: email.toLowerCase(),
       phone: '', // Will be filled in complete-profile
@@ -1664,7 +1350,7 @@ const googleSignup = async (req, res) => {
         id: user._id, 
         email: user.email,
         role: user.role,
-        companyName: user.companyName
+       
       },
       process.env.JWT_SECRET || 'your-secret-key-change-this',
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
@@ -1713,7 +1399,7 @@ const googleSignup = async (req, res) => {
 // @access  Private
 const checkProfileStatus = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('companyName contactPerson phone whatsapp country address city zipCode profileCompleted authProvider');
+    const user = await User.findById(req.user.id).select(' contactPerson phone whatsapp country address city zipCode profileCompleted authProvider');
     
     if (!user) {
       return res.status(404).json({
@@ -1723,7 +1409,7 @@ const checkProfileStatus = async (req, res) => {
     }
 
     // Define required fields based on auth provider
-    let requiredFields = ['companyName', 'contactPerson', 'phone', 'whatsapp', 'country', 'address', 'city', 'zipCode'];
+    let requiredFields = [ 'contactPerson', 'phone', 'whatsapp', 'country', 'address', 'city', 'zipCode'];
     
     // For Google users, companyName and contactPerson might already be set
     const missingFields = requiredFields.filter(field => {
@@ -1765,7 +1451,7 @@ const adminCreateCustomer = async (req, res) => {
     console.log('📝 Admin creating customer account');
 
     const {
-      companyName,
+     
       contactPerson,
       email,
       phone,
@@ -1780,7 +1466,7 @@ const adminCreateCustomer = async (req, res) => {
 
     // Validate required fields
     const missingFields = [];
-    if (!companyName) missingFields.push('companyName');
+   
     if (!contactPerson) missingFields.push('contactPerson');
     if (!email) missingFields.push('email');
     if (!phone) missingFields.push('phone');
@@ -1829,7 +1515,7 @@ const adminCreateCustomer = async (req, res) => {
 
     // Create new user with completed status (no OTP needed)
     const user = new User({
-      companyName,
+    
       contactPerson,
       email: email.toLowerCase(),
       phone,
@@ -1855,7 +1541,7 @@ const adminCreateCustomer = async (req, res) => {
 
     // Send welcome email directly (no OTP)
     try {
-      await sendWelcomeEmail(user.email, user.companyName || user.contactPerson);
+      await sendWelcomeEmail(user.email, user.contactPerson);
       console.log('✅ Welcome email sent to:', email);
     } catch (emailError) {
       console.error('⚠️ Welcome email failed but account created:', emailError.message);
@@ -1924,7 +1610,7 @@ const subscribeToNewsletter = async (req, res) => {
     await user.save();
 
     // 🆕 SEND SUBSCRIPTION CONFIRMATION EMAIL
-    const emailName = user.companyName || user.contactPerson || user.email.split('@')[0];
+    const emailName =  user.contactPerson || user.email.split('@')[0];
     sendSubscriptionConfirmationEmail(user.email, emailName)
       .catch(err => console.error('Background subscription email failed:', err));
 
@@ -1967,7 +1653,7 @@ const unsubscribeFromNewsletter = async (req, res) => {
     await user.save();
 
     // 🆕 SEND UNSUBSCRIBE CONFIRMATION EMAIL
-    const emailName = user.companyName || user.contactPerson || user.email.split('@')[0];
+    const emailName =  user.contactPerson || user.email.split('@')[0];
     sendUnsubscribeConfirmationEmail(user.email, emailName)
       .catch(err => console.error('Background unsubscribe email failed:', err));
 
