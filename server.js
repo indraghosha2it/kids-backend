@@ -27,6 +27,9 @@ const popupRoutes = require('./src/routes/popupRoutes');
 const cartRoutes = require('./src/routes/cartRoutes');
 const couponRoutes = require('./src/routes/couponRoutes');
 const wishlistRoutes = require('./src/routes/wishlistRoutes');
+const orderRoutes = require('./src/routes/orderRoutes');
+
+// Add with other routes
 
 
 
@@ -125,6 +128,8 @@ app.use('/api/certifications', certificationRoutes);
 app.use('/api', popupRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+
+app.use('/api/orders', orderRoutes);
 
 app.use('/api/coupons', couponRoutes);
 
