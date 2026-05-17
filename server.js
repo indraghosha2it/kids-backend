@@ -30,6 +30,10 @@ const wishlistRoutes = require('./src/routes/wishlistRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 
 const paymentRoutes = require('./src/routes/paymentRoutes');
+// Add this with your other route imports
+const deliveryRoutes = require('./src/routes/deliveryRoutes');
+
+
 
 
 
@@ -138,6 +142,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/coupons', couponRoutes);
 
 app.use('/api/payments', paymentRoutes);
+
+app.use('/api/delivery', deliveryRoutes);
 
 // Basic test route
 app.get('/api/test', (req, res) => {

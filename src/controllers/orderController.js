@@ -343,7 +343,7 @@ const getUserOrders = async (req, res) => {
     const userId = req.user?._id;
     const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
     
-    const { page = 1, limit = 10, orderStatus } = req.query;
+    const { page = 1, limit = 10, orderStatus, paymentStatus, paymentMethod, search } = req.query;
     
     const query = {};
     
@@ -359,8 +359,20 @@ const getUserOrders = async (req, res) => {
       });
     }
     
-    if (orderStatus) {
-      query.orderStatus = orderStatus;
+    if (orderStatus) query.orderStatus = orderStatus;
+    if (paymentStatus) query.paymentStatus = paymentStatus;
+    if (paymentMethod) query.paymentMethod = paymentMethod;
+    
+    // Add search functionality for customer orders
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      query.$or = [
+        { orderNumber: searchRegex },
+        { 'customerInfo.fullName': searchRegex },
+        { 'customerInfo.email': searchRegex },
+        { 'customerInfo.phone': searchRegex },
+        { 'items.productName': searchRegex }
+      ];
     }
     
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -424,10 +436,66 @@ const getOrderById = async (req, res) => {
 // @desc    Update order status (Admin/Moderator)
 // @route   PUT /api/orders/:id/status
 // @access  Private (Admin/Moderator)
+// const updateOrderStatus = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { orderStatus, trackingNumber, deliveryNote } = req.body;
+    
+//     const order = await Order.findById(id);
+    
+//     if (!order) {
+//       return res.status(404).json({ success: false, error: 'Order not found' });
+//     }
+    
+// const validStatuses = ['placed', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+    
+//     if (orderStatus && !validStatuses.includes(orderStatus)) {
+//       return res.status(400).json({ success: false, error: 'Invalid order status' });
+//     }
+    
+//     // If order is being delivered, set delivered date
+//     if (orderStatus === 'delivered' && order.orderStatus !== 'delivered') {
+//       order.deliveredAt = new Date();
+//     }
+    
+//     // If order is being cancelled, set cancelled date
+//     if (orderStatus === 'cancelled' && order.orderStatus !== 'cancelled') {
+//       order.cancelledAt = new Date();
+      
+//       // Restore stock for cancelled order
+//       for (const item of order.items) {
+//         await Product.findByIdAndUpdate(
+//           item.productId,
+//           { $inc: { stockQuantity: item.quantity } }
+//         );
+//       }
+//     }
+    
+//     if (orderStatus) order.orderStatus = orderStatus;
+//     if (trackingNumber !== undefined) order.trackingNumber = trackingNumber;
+//     if (deliveryNote !== undefined) order.deliveryNote = deliveryNote;
+    
+//     await order.save();
+    
+//     res.json({
+//       success: true,
+//       data: order,
+//       message: `Order status updated to ${orderStatus}`
+//     });
+    
+//   } catch (error) {
+//     console.error('Update order status error:', error);
+//     res.status(500).json({ success: false, error: error.message });
+//   }
+// };
+
+// @desc    Update order status (Admin/Moderator)
+// @route   PUT /api/orders/:id/status
+// @access  Private (Admin/Moderator)
 const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { orderStatus, trackingNumber, deliveryNote } = req.body;
+    const { orderStatus, trackingNumber, deliveryNote, cancellationReason } = req.body;
     
     const order = await Order.findById(id);
     
@@ -435,7 +503,7 @@ const updateOrderStatus = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
     
-const validStatuses = ['placed', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+    const validStatuses = ['placed', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
     
     if (orderStatus && !validStatuses.includes(orderStatus)) {
       return res.status(400).json({ success: false, error: 'Invalid order status' });
@@ -446,9 +514,12 @@ const validStatuses = ['placed', 'confirmed', 'processing', 'shipped', 'delivere
       order.deliveredAt = new Date();
     }
     
-    // If order is being cancelled, set cancelled date
+    // If order is being cancelled, set cancelled date and reason
     if (orderStatus === 'cancelled' && order.orderStatus !== 'cancelled') {
       order.cancelledAt = new Date();
+      if (cancellationReason) {
+        order.cancellationReason = cancellationReason;
+      }
       
       // Restore stock for cancelled order
       for (const item of order.items) {
@@ -497,6 +568,44 @@ const updatePaymentStatus = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid payment status' });
     }
     
+    // Validate status transitions
+    const currentStatus = order.paymentStatus;
+    
+    // Pending → Paid or Failed
+    if (currentStatus === 'pending') {
+      if (!['paid', 'failed'].includes(paymentStatus)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Pending status can only be changed to Paid or Failed' 
+        });
+      }
+    }
+    // Failed → Paid only
+    else if (currentStatus === 'failed') {
+      if (paymentStatus !== 'paid') {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Failed status can only be changed to Paid' 
+        });
+      }
+    }
+    // Paid → Refunded only
+    else if (currentStatus === 'paid') {
+      if (paymentStatus !== 'refunded') {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Paid status can only be changed to Refunded' 
+        });
+      }
+    }
+    // Refunded → No changes allowed
+    else if (currentStatus === 'refunded') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Refunded status cannot be changed further' 
+      });
+    }
+    
     order.paymentStatus = paymentStatus;
     if (paymentDetails) {
       order.paymentDetails = { ...order.paymentDetails, ...paymentDetails };
@@ -519,11 +628,70 @@ const updatePaymentStatus = async (req, res) => {
 // @desc    Cancel order (User)
 // @route   PUT /api/orders/:id/cancel
 // @access  Public (with sessionId) or Private (with token)
+// const cancelOrder = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { cancellationReason } = req.body;
+//     const userId = req.user?._id;
+//     const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
+    
+//     const order = await Order.findById(id);
+    
+//     if (!order) {
+//       return res.status(404).json({ success: false, error: 'Order not found' });
+//     }
+    
+//     // Check permission
+//     const hasPermission = (userId && order.userId && order.userId.toString() === userId.toString()) ||
+//                          (sessionId && order.sessionId === sessionId);
+    
+//     if (!hasPermission) {
+//       return res.status(403).json({ success: false, error: 'Unauthorized to cancel this order' });
+//     }
+    
+//     // Check if order can be cancelled (only pending or confirmed orders)
+//     if (!['pending', 'confirmed'].includes(order.orderStatus)) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         error: `Order cannot be cancelled as it is already ${order.orderStatus}` 
+//       });
+//     }
+    
+//     order.orderStatus = 'cancelled';
+//     order.cancelledAt = new Date();
+//     order.cancellationReason = cancellationReason || 'Cancelled by customer';
+    
+//     // Restore stock
+//     for (const item of order.items) {
+//       await Product.findByIdAndUpdate(
+//         item.productId,
+//         { $inc: { stockQuantity: item.quantity } }
+//       );
+//     }
+    
+//     await order.save();
+    
+//     res.json({
+//       success: true,
+//       data: order,
+//       message: 'Order cancelled successfully'
+//     });
+    
+//   } catch (error) {
+//     console.error('Cancel order error:', error);
+//     res.status(500).json({ success: false, error: error.message });
+//   }
+// };
+
+// @desc    Cancel order (User/Admin/Moderator)
+// @route   PUT /api/orders/:id/cancel
+// @access  Public (with sessionId) or Private (with token)
 const cancelOrder = async (req, res) => {
   try {
     const { id } = req.params;
     const { cancellationReason } = req.body;
     const userId = req.user?._id;
+    const userRole = req.user?.role;
     const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
     
     const order = await Order.findById(id);
@@ -534,23 +702,39 @@ const cancelOrder = async (req, res) => {
     
     // Check permission
     const hasPermission = (userId && order.userId && order.userId.toString() === userId.toString()) ||
-                         (sessionId && order.sessionId === sessionId);
+                         (sessionId && order.sessionId === sessionId) ||
+                         ['admin', 'moderator'].includes(userRole);
     
     if (!hasPermission) {
       return res.status(403).json({ success: false, error: 'Unauthorized to cancel this order' });
     }
     
-    // Check if order can be cancelled (only pending or confirmed orders)
-    if (!['pending', 'confirmed'].includes(order.orderStatus)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: `Order cannot be cancelled as it is already ${order.orderStatus}` 
-      });
+    // Different rules for customers vs admin/moderator
+    const isAdminOrModerator = ['admin', 'moderator'].includes(userRole);
+    
+    if (!isAdminOrModerator) {
+      // CUSTOMER RULES: Only can cancel when status is 'placed'
+      if (order.orderStatus !== 'placed') {
+        return res.status(400).json({ 
+          success: false, 
+          error: `Order cannot be cancelled. Current status: ${order.orderStatus}. Only 'Placed' orders can be cancelled by customer.` 
+        });
+      }
+    } else {
+      // ADMIN/MODERATOR RULES: Can cancel when status is placed, confirmed, processing, shipped
+      const cancelableStatuses = ['placed', 'confirmed', 'processing', 'shipped'];
+      
+      if (!cancelableStatuses.includes(order.orderStatus)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: `Order cannot be cancelled. Current status: ${order.orderStatus}. Only 'Placed', 'Confirmed', 'Processing', or 'Shipped' orders can be cancelled.` 
+        });
+      }
     }
     
     order.orderStatus = 'cancelled';
     order.cancelledAt = new Date();
-    order.cancellationReason = cancellationReason || 'Cancelled by customer';
+    order.cancellationReason = cancellationReason || (isAdminOrModerator ? 'Cancelled by admin' : 'Cancelled by customer');
     
     // Restore stock
     for (const item of order.items) {
@@ -599,6 +783,7 @@ const getAllOrders = async (req, res) => {
     if (search) {
       const searchRegex = new RegExp(search, 'i');
       query.$or = [
+        { orderNumber: searchRegex },  
         { 'customerInfo.fullName': searchRegex },
         { 'customerInfo.email': searchRegex },
         { 'customerInfo.phone': searchRegex }
@@ -614,17 +799,26 @@ const getAllOrders = async (req, res) => {
     
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    // Sort options
+    // Sort options - Fix the sort mapping
     let sortOption = {};
     switch (sort) {
       case 'createdAt_asc':
         sortOption = { createdAt: 1 };
         break;
-      case 'total_desc':
-        sortOption = { total: -1 };
+      case 'createdAt_desc':
+        sortOption = { createdAt: -1 };
         break;
       case 'total_asc':
         sortOption = { total: 1 };
+        break;
+      case 'total_desc':
+        sortOption = { total: -1 };
+        break;
+      case '-createdAt':
+        sortOption = { createdAt: -1 };
+        break;
+      case '-total':
+        sortOption = { total: -1 };
         break;
       default:
         sortOption = { createdAt: -1 };
@@ -668,19 +862,24 @@ const getOrderStats = async (req, res) => {
     thisMonth.setDate(1);
     thisMonth.setHours(0, 0, 0, 0);
     
+    // Get all status counts
     const [
       totalOrders,
-      pendingOrders,
+      pendingPayment,
       processingOrders,
       completedOrders,
       cancelledOrders,
       todayOrders,
       monthOrders,
       totalRevenue,
-      monthRevenue
+      monthRevenue,
+      placedOrders,
+      confirmedOrders,
+      shippedOrders,
+      deliveredOrders
     ] = await Promise.all([
       Order.countDocuments(),
-      Order.countDocuments({ orderStatus: 'pending' }),
+      Order.countDocuments({ paymentStatus: 'pending' }),
       Order.countDocuments({ orderStatus: { $in: ['confirmed', 'processing', 'shipped'] } }),
       Order.countDocuments({ orderStatus: 'delivered' }),
       Order.countDocuments({ orderStatus: 'cancelled' }),
@@ -690,21 +889,29 @@ const getOrderStats = async (req, res) => {
       Order.aggregate([
         { $match: { createdAt: { $gte: thisMonth } } },
         { $group: { _id: null, total: { $sum: '$total' } } }
-      ])
+      ]),
+      Order.countDocuments({ orderStatus: 'placed' }),
+      Order.countDocuments({ orderStatus: 'confirmed' }),
+      Order.countDocuments({ orderStatus: 'shipped' }),
+      Order.countDocuments({ orderStatus: 'delivered' })
     ]);
     
     res.json({
       success: true,
       data: {
         totalOrders,
-        pendingOrders,
+        pendingOrders: pendingPayment,
         processingOrders,
         completedOrders,
         cancelledOrders,
         todayOrders,
         monthOrders,
         totalRevenue: totalRevenue[0]?.total || 0,
-        monthRevenue: monthRevenue[0]?.total || 0
+        monthRevenue: monthRevenue[0]?.total || 0,
+        placedOrders,
+        confirmedOrders,
+        shippedOrders,
+        deliveredOrders
       }
     });
     
@@ -796,6 +1003,82 @@ const prepareOrder = async (req, res) => {
   }
 };
 
+// @desc    Delete order (Admin only)
+// @route   DELETE /api/orders/:id
+// @access  Private (Admin only)
+const deleteOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const order = await Order.findById(id);
+    
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    // Optional: Restore stock if order is not cancelled/delivered
+    if (!['cancelled', 'delivered'].includes(order.orderStatus)) {
+      for (const item of order.items) {
+        await Product.findByIdAndUpdate(
+          item.productId,
+          { $inc: { stockQuantity: item.quantity } }
+        );
+      }
+    }
+    
+    await order.deleteOne();
+    
+    res.json({
+      success: true,
+      message: 'Order deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('Delete order error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// @desc    Update order (Admin only)
+// @route   PUT /api/orders/:id
+// @access  Private (Admin/Moderator)
+const updateOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { customerInfo, trackingNumber, deliveryNote } = req.body;
+    
+    const order = await Order.findById(id);
+    
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    // Update customer info if provided
+    if (customerInfo) {
+      order.customerInfo = {
+        ...order.customerInfo,
+        ...customerInfo
+      };
+    }
+    
+    // Update tracking info
+    if (trackingNumber !== undefined) order.trackingNumber = trackingNumber;
+    if (deliveryNote !== undefined) order.deliveryNote = deliveryNote;
+    
+    await order.save();
+    
+    res.json({
+      success: true,
+      data: order,
+      message: 'Order updated successfully'
+    });
+    
+  } catch (error) {
+    console.error('Update order error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 module.exports = {
   createOrder,
   getUserOrders,
@@ -805,5 +1088,7 @@ module.exports = {
   cancelOrder,
   getAllOrders,
   getOrderStats,
-  prepareOrder
+  prepareOrder,
+  deleteOrder,
+  updateOrder
 };
