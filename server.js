@@ -11,14 +11,12 @@ const authRoutes = require('./src/routes/authRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const categoryRoutes = require('./src/routes/categoryRoutes');
 const productRoutes = require('./src/routes/productRoutes');
-const inquiryCartRoutes = require('./src/routes/inquiryCartRoutes');
-const inquiryRoutes = require('./src/routes/inquiryRoutes'); // ADD THIS
-const adminInquiryRoutes = require('./src/routes/adminInquiryRoutes'); // ADD THIS
+
 const uploadRoutes = require('./src/routes/uploadRoutes');
-const invoiceRoutes = require('./src/routes/invoiceRoutes'); 
+
 const blogRoutes = require('./src/routes/blogRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
-const moderatorInquiryRoutes = require('./src/routes/moderatorInquiryRoutes');
+
 const searchRoutes = require('./src/routes/searchRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
 const promotionalRoutes = require('./src/routes/promotionalRoutes');
@@ -121,14 +119,12 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/categories', categoryRoutes); 
 app.use('/api/products', productRoutes); 
 app.use('/uploads', express.static('uploads'));
-app.use('/api/inquiry-cart', inquiryCartRoutes);
-app.use('/api/inquiries', inquiryRoutes); // ADD THIS - Customer inquiry routes
-app.use('/api/admin/inquiries', adminInquiryRoutes); // ADD THIS - Admin inquiry routes
+
 app.use('/api/upload', uploadRoutes);
-app.use('/api/invoices', invoiceRoutes);
+
 app.use('/api/blogs', blogRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/moderator/inquiries', moderatorInquiryRoutes);
+
 app.use('/api/search', searchRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api', promotionalRoutes);

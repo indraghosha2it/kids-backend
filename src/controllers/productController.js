@@ -768,14 +768,15 @@ const getProductById = async (req, res) => {
     product.views += 1;
     await product.save();
 
-    // Get related products (same category)
+    // Get related products (same category) - FIX: Add populate for category
     const relatedProducts = await Product.find({
       category: product.category,
       _id: { $ne: product._id },
       isActive: true
     })
-      .limit(5)
-      .select('productName slug regularPrice discountPrice images rating');
+      .limit(8)
+      .populate('category', 'name slug')  // <-- ADD THIS LINE
+      .select('productName slug regularPrice discountPrice images rating ageGroup stockQuantity tags category categoryName subcategoryName childSubcategoryName brand');
 
     res.json({
       success: true,
@@ -792,7 +793,6 @@ const getProductById = async (req, res) => {
     });
   }
 };
-
 // @desc    Update product
 // @route   PUT /api/products/:id
 // @access  Private (Moderator/Admin)

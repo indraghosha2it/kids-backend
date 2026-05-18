@@ -40,7 +40,9 @@ const {
   removeFromCart,
   clearCart,
   mergeCart,
-  checkCartStatus
+  checkCartStatus,
+  checkCartItem,
+
 } = require('../controllers/cartController');
 
 // Use optionalProtect for ALL routes - allows both guests and logged-in users
@@ -51,5 +53,8 @@ router.delete('/:itemId', optionalProtect, removeFromCart);
 router.delete('/', optionalProtect, clearCart);
 router.post('/merge', protect, mergeCart); // This still needs full auth
 router.post('/check-status', optionalProtect, checkCartStatus);
+// In cartRoutes.js, add this route
+router.get('/check/:productId', checkCartItem);
+
 
 module.exports = router;

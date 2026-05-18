@@ -122,8 +122,9 @@ const getCartItems = async (req, res) => {
 //       return res.status(404).json({ success: false, error: 'Product not found' });
 //     }
     
-//     if (product.stockQuantity < quantity) {
-//       return res.status(400).json({ success: false, error: 'Insufficient stock' });
+//     // Check stock
+//     if (product.stockQuantity < 1) {
+//       return res.status(400).json({ success: false, error: 'Product out of stock' });
 //     }
     
 //     let cart;
@@ -180,15 +181,27 @@ const getCartItems = async (req, res) => {
 //     );
     
 //     if (existingItemIndex >= 0) {
-//       // If product exists, just update quantity, don't increase totalItems count
-//       const newQuantity = cart.items[existingItemIndex].quantity + quantity;
-//       if (product.stockQuantity < newQuantity) {
-//         return res.status(400).json({ success: false, error: 'Insufficient stock' });
+//       // PRODUCT ALREADY EXISTS - DO NOT INCREASE QUANTITY
+//       // Just return a message that product is already in cart
+//       console.log('Product already in cart, not adding again');
+      
+//       // Prepare response
+//       const responseData = {
+//         success: true,
+//         data: cart,
+//         message: 'Product already in cart',
+//         alreadyInCart: true
+//       };
+      
+//       // Only send sessionId for guest users
+//       if (!userId && cart._tempSessionId) {
+//         responseData.sessionId = cart._tempSessionId;
+//         delete cart._tempSessionId;
 //       }
-//       cart.items[existingItemIndex].quantity = newQuantity;
-//       console.log('Updated existing item quantity to:', newQuantity);
+      
+//       return res.json(responseData);
 //     } else {
-//       // Add new item - this increases totalItems count
+//       // Add new item - quantity always 1
 //       cart.items.push({
 //         productId: product._id,
 //         productName: product.productName,
@@ -196,14 +209,14 @@ const getCartItems = async (req, res) => {
 //         image: product.images && product.images[0]?.url || '',
 //         regularPrice: product.regularPrice,
 //         discountPrice: product.discountPrice || 0,
-//         quantity: quantity,
+//         quantity: 1, // Always start with quantity 1
 //         stockQuantity: product.stockQuantity
 //       });
 //       console.log('Added new item to cart');
 //     }
     
-//     // Update totals - totalItems should be the number of unique items, not sum of quantities
-//     cart.totalItems = cart.items.length; // This is the key fix
+//     // Update totals - totalItems should be the number of unique items
+//     cart.totalItems = cart.items.length;
 //     cart.subtotal = cart.items.reduce((sum, item) => {
 //       const price = (item.discountPrice && item.discountPrice > 0) ? item.discountPrice : (item.regularPrice || 0);
 //       return sum + (price * (item.quantity || 0));
@@ -235,11 +248,13 @@ const getCartItems = async (req, res) => {
 //   }
 // };
 
+// @desc    Add item to cart
+// @route   POST /api/cart
+// @access  Public (with sessionId) or Private (with token)
 const addToCart = async (req, res) => {
   console.log('=== ADD TO CART ===');
   console.log('req.user:', req.user);
-  console.log('req.user?._id:', req.user?._id);
-  console.log('Authorization header:', req.headers.authorization);
+  console.log('req.body:', req.body);
   
   try {
     const { productId, quantity = 1 } = req.body;
@@ -255,16 +270,22 @@ const addToCart = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Product not found' });
     }
     
+    // Validate quantity
+    const requestedQuantity = parseInt(quantity) || 1;
+    if (requestedQuantity < 1) {
+      return res.status(400).json({ success: false, error: 'Quantity must be at least 1' });
+    }
+    
     // Check stock
-    if (product.stockQuantity < 1) {
-      return res.status(400).json({ success: false, error: 'Product out of stock' });
+    if (product.stockQuantity < requestedQuantity) {
+      return res.status(400).json({ success: false, error: `Only ${product.stockQuantity} items available in stock` });
     }
     
     let cart;
     
     if (userId) {
       // LOGGED IN USER - Find or create cart by userId
-      console.log('Adding to cart for logged-in user:', userId);
+      console.log('Adding to cart for logged-in user:', userId, 'Quantity:', requestedQuantity);
       cart = await Cart.findOne({ userId });
       
       if (!cart) {
@@ -283,7 +304,7 @@ const addToCart = async (req, res) => {
         sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       }
       
-      console.log('Adding to cart for guest user, sessionId:', sessionId);
+      console.log('Adding to cart for guest user, sessionId:', sessionId, 'Quantity:', requestedQuantity);
       cart = await Cart.findOne({ sessionId });
       
       if (!cart) {
@@ -314,27 +335,21 @@ const addToCart = async (req, res) => {
     );
     
     if (existingItemIndex >= 0) {
-      // PRODUCT ALREADY EXISTS - DO NOT INCREASE QUANTITY
-      // Just return a message that product is already in cart
-      console.log('Product already in cart, not adding again');
+      // PRODUCT ALREADY EXISTS - Update quantity (add to existing)
+      const newQuantity = cart.items[existingItemIndex].quantity + requestedQuantity;
       
-      // Prepare response
-      const responseData = {
-        success: true,
-        data: cart,
-        message: 'Product already in cart',
-        alreadyInCart: true
-      };
-      
-      // Only send sessionId for guest users
-      if (!userId && cart._tempSessionId) {
-        responseData.sessionId = cart._tempSessionId;
-        delete cart._tempSessionId;
+      // Check stock for new total quantity
+      if (product.stockQuantity < newQuantity) {
+        return res.status(400).json({ 
+          success: false, 
+          error: `Cannot add ${requestedQuantity} more. Only ${product.stockQuantity - cart.items[existingItemIndex].quantity} additional items available.` 
+        });
       }
       
-      return res.json(responseData);
+      cart.items[existingItemIndex].quantity = newQuantity;
+      console.log('Updated existing item quantity to:', newQuantity);
     } else {
-      // Add new item - quantity always 1
+      // Add new item with the requested quantity
       cart.items.push({
         productId: product._id,
         productName: product.productName,
@@ -342,14 +357,14 @@ const addToCart = async (req, res) => {
         image: product.images && product.images[0]?.url || '',
         regularPrice: product.regularPrice,
         discountPrice: product.discountPrice || 0,
-        quantity: 1, // Always start with quantity 1
+        quantity: requestedQuantity, // Use the requested quantity
         stockQuantity: product.stockQuantity
       });
-      console.log('Added new item to cart');
+      console.log('Added new item to cart with quantity:', requestedQuantity);
     }
     
-    // Update totals - totalItems should be the number of unique items
-    cart.totalItems = cart.items.length;
+    // Update totals
+    cart.totalItems = cart.items.length; // Number of unique items
     cart.subtotal = cart.items.reduce((sum, item) => {
       const price = (item.discountPrice && item.discountPrice > 0) ? item.discountPrice : (item.regularPrice || 0);
       return sum + (price * (item.quantity || 0));
@@ -358,13 +373,13 @@ const addToCart = async (req, res) => {
     
     await cart.save();
     
-    console.log('Cart saved - Total items (unique):', cart.totalItems, 'User ID:', userId || 'guest');
+    console.log('Cart saved - Unique items:', cart.totalItems, 'Subtotal:', cart.subtotal);
     
     // Prepare response
     const responseData = {
       success: true,
       data: cart,
-      message: 'Item added to cart'
+      message: requestedQuantity > 1 ? `${requestedQuantity} items added to cart` : 'Item added to cart'
     };
     
     // Only send sessionId for guest users
@@ -380,7 +395,6 @@ const addToCart = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
-
 const updateCartItem = async (req, res) => {
   try {
     const { itemId } = req.params;
@@ -852,6 +866,44 @@ const checkCartStatus = async (req, res) => {
   }
 };
 
+// @desc    Check if product is in cart
+// @route   GET /api/cart/check/:productId
+// @access  Public
+const checkCartItem = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const userId = req.user?._id;
+    const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
+    
+    let cart = null;
+    if (userId) {
+      cart = await Cart.findOne({ userId });
+    } else if (sessionId) {
+      cart = await Cart.findOne({ sessionId });
+    }
+    
+    let inCart = false;
+    if (cart && cart.items) {
+      inCart = cart.items.some(item => item.productId.toString() === productId);
+    }
+    
+    res.json({ success: true, data: { inCart } });
+  } catch (error) {
+    console.error('Check cart item error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+// @desc    Check if product is in wishlist
+// @route   GET /api/wishlist/check/:productId
+// @access  Public (with sessionId) or Private (with token)
+
+
+// Make sure this route exists in your wishlistRoutes.js
+// router.get('/check/:productId', checkWishlistItem);
+
+// Add the route in cartRoutes.js
+// router.get('/check/:productId', checkCartItem);
+
 // Add route in cartRoutes.js
 
 module.exports = {
@@ -861,7 +913,9 @@ module.exports = {
   removeFromCart,
   clearCart,
   mergeCart,
-checkCartStatus
+checkCartStatus,
+checkCartItem,
+
 };
 
 

@@ -7,7 +7,8 @@ const {
   removeFromWishlist,
   clearWishlist,
   mergeWishlist,
-  checkWishlistStatus
+  checkWishlistStatus,
+  checkWishlistItem
 } = require('../controllers/wishlistController');
 
 // Use optionalProtect for all routes - allows both guests and logged-in users
@@ -17,6 +18,7 @@ router.delete('/:itemId', optionalProtect, removeFromWishlist);
 router.delete('/', optionalProtect, clearWishlist);
 router.post('/merge', protect, mergeWishlist);
 router.post('/check-status', optionalProtect, checkWishlistStatus);
+router.get('/check/:productId', optionalProtect, checkWishlistItem);
 
 
 module.exports = router;

@@ -577,11 +577,50 @@ const checkWishlistStatus = async (req, res) => {
   }
 };
 
+// @desc    Check if product is in wishlist
+// @route   GET /api/wishlist/check/:productId
+// @access  Public (with sessionId) or Private (with token)
+const checkWishlistItem = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const userId = req.user?._id;
+    const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
+    
+    console.log('=== CHECK WISHLIST ITEM ===');
+    console.log('Product ID:', productId);
+    console.log('User ID:', userId);
+    console.log('Session ID:', sessionId);
+    
+    let wishlist = null;
+    if (userId) {
+      wishlist = await Wishlist.findOne({ userId });
+      console.log('Found wishlist by userId:', !!wishlist);
+    } else if (sessionId) {
+      wishlist = await Wishlist.findOne({ sessionId });
+      console.log('Found wishlist by sessionId:', !!wishlist);
+    }
+    
+    let inWishlist = false;
+    if (wishlist && wishlist.items) {
+      inWishlist = wishlist.items.some(item => item.productId.toString() === productId);
+      console.log('Product in wishlist:', inWishlist);
+    }
+    
+    res.json({ success: true, data: { inWishlist } });
+  } catch (error) {
+    console.error('Check wishlist item error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+
+
 module.exports = {
   getWishlist,
   addToWishlist,
   removeFromWishlist,
   clearWishlist,
   mergeWishlist,
-  checkWishlistStatus
+  checkWishlistStatus,
+  checkWishlistItem
 };
