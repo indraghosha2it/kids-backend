@@ -150,6 +150,8 @@
   
 //   return result.length > 0 ? result[0] : { averageRating: 0, totalReviews: 0 };
 // };
+
+
 const mongoose = require('mongoose');
 
 const reviewSchema = new mongoose.Schema({
@@ -251,6 +253,10 @@ const reviewSchema = new mongoose.Schema({
     default: false
   },
   isVerifiedPurchase: {
+    type: Boolean,
+    default: false
+  },
+   isFeatured: {
     type: Boolean,
     default: false
   },

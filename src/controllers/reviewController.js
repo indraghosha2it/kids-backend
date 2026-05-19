@@ -1275,6 +1275,162 @@ cloudinary.config({
 // @desc    Create a new review (supports both logged-in and guest users)
 // @route   POST /api/reviews
 // @access  Public (with optional auth)
+// const createReview = async (req, res) => {
+//   try {
+//     const {
+//       rating,
+//       title,
+//       comment,
+//       productId,
+//       productName,
+//       images = [],
+//       video = null,
+//       isAnonymous = false,
+//       reviewerName,
+//       email
+//     } = req.body;
+
+//     // Check if user is logged in
+//     const isLoggedIn = req.user && req.user.id;
+    
+//     let userId = null;
+//     let userName = '';
+//     let userEmail = '';
+//     let isGuest = false;
+
+//     if (isLoggedIn) {
+//       // Logged in user
+//       userId = req.user.id;
+//       userEmail = req.user.email;
+//       userName = req.user.contactPerson || req.user.companyName || userEmail.split('@')[0];
+//       isGuest = false;
+//     } else {
+//       // Guest user - validation required
+//       if (!reviewerName || !reviewerName.trim()) {
+//         return res.status(400).json({
+//           success: false,
+//           error: 'Please provide your name'
+//         });
+//       }
+      
+//       if (!email || !email.trim()) {
+//         return res.status(400).json({
+//           success: false,
+//           error: 'Please provide your email address'
+//         });
+//       }
+      
+//       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+//         return res.status(400).json({
+//           success: false,
+//           error: 'Please provide a valid email address'
+//         });
+//       }
+      
+//       userName = reviewerName.trim();
+//       userEmail = email.toLowerCase().trim();
+//       isGuest = true;
+//     }
+
+//     // Validation
+//     if (!rating || rating < 1 || rating > 5) {
+//       return res.status(400).json({
+//         success: false,
+//         error: 'Rating must be between 1 and 5'
+//       });
+//     }
+
+//     if (!comment || comment.trim().length < 10) {
+//       return res.status(400).json({
+//         success: false,
+//         error: 'Review must be at least 10 characters long'
+//       });
+//     }
+
+//     if (comment.length > 500) {
+//       return res.status(400).json({
+//         success: false,
+//         error: 'Review cannot exceed 500 characters'
+//       });
+//     }
+
+//     // For logged-in users, check if they've already reviewed this product
+//     if (!isGuest && productId) {
+//       const existingReview = await Review.findOne({
+//         user: userId,
+//         product: productId
+//       });
+
+//       if (existingReview) {
+//         return res.status(400).json({
+//           success: false,
+//           error: 'You have already reviewed this product'
+//         });
+//       }
+//     }
+    
+//     // For guest users, check if same email has reviewed this product recently
+//     if (isGuest && productId) {
+//       const existingReview = await Review.findOne({
+//         guestEmail: userEmail,
+//         product: productId,
+//         createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
+//       });
+
+//       if (existingReview) {
+//         return res.status(400).json({
+//           success: false,
+//           error: 'You have already reviewed this product recently'
+//         });
+//       }
+//     }
+
+//     // Create review
+//     const review = await Review.create({
+//       user: userId,
+//       userName,
+//       email: userEmail,
+//       product: productId || null,
+//       productName: productName || '',
+//       rating,
+//       title: title || '',
+//       comment: comment.trim(),
+//       images: images || [],
+//       video: video || null,
+//       isAnonymous: isLoggedIn ? isAnonymous : false, // Guests cannot be anonymous
+//       isGuest,
+//       guestEmail: isGuest ? userEmail : null,
+//       guestName: isGuest ? userName : null,
+//       isVerifiedPurchase: false,
+//       status: 'pending',
+//       isApproved: false
+//     });
+
+//     // Populate user info for response (if logged in)
+//     if (!isGuest) {
+//       await review.populate('user', 'contactPerson email profilePicture');
+//     }
+
+//     res.status(201).json({
+//       success: true,
+//       data: review,
+//       message: isGuest 
+//         ? 'Review submitted successfully! It will be published after moderation.'
+//         : 'Review submitted successfully and pending approval'
+//     });
+
+//   } catch (error) {
+//     console.error('Create review error:', error);
+//     res.status(500).json({
+//       success: false,
+//       error: error.message || 'Failed to submit review'
+//     });
+//   }
+// };
+
+// @desc    Create a new review (supports both logged-in and guest users)
+// @route   POST /api/reviews
+// @access  Public (with optional auth)
 const createReview = async (req, res) => {
   try {
     const {
@@ -1297,6 +1453,7 @@ const createReview = async (req, res) => {
     let userName = '';
     let userEmail = '';
     let isGuest = false;
+    let isVerifiedPurchase = false;
 
     if (isLoggedIn) {
       // Logged in user
@@ -1304,6 +1461,20 @@ const createReview = async (req, res) => {
       userEmail = req.user.email;
       userName = req.user.contactPerson || req.user.companyName || userEmail.split('@')[0];
       isGuest = false;
+      
+      // Check if user has purchased this product
+      if (productId) {
+        const Order = require('../models/Order');
+        
+        // Find if user has a completed order with this product
+        const hasPurchased = await Order.findOne({
+          userId: userId,
+          orderStatus: 'delivered', // or 'completed', 'confirmed' depending on your order flow
+          'items.productId': productId
+        });
+        
+        isVerifiedPurchase = !!hasPurchased;
+      }
     } else {
       // Guest user - validation required
       if (!reviewerName || !reviewerName.trim()) {
@@ -1330,6 +1501,7 @@ const createReview = async (req, res) => {
       userName = reviewerName.trim();
       userEmail = email.toLowerCase().trim();
       isGuest = true;
+      isVerifiedPurchase = false; // Guest users cannot be verified
     }
 
     // Validation
@@ -1401,7 +1573,7 @@ const createReview = async (req, res) => {
       isGuest,
       guestEmail: isGuest ? userEmail : null,
       guestName: isGuest ? userName : null,
-      isVerifiedPurchase: false,
+      isVerifiedPurchase, // Set based on purchase history
       status: 'pending',
       isApproved: false
     });
@@ -1416,7 +1588,7 @@ const createReview = async (req, res) => {
       data: review,
       message: isGuest 
         ? 'Review submitted successfully! It will be published after moderation.'
-        : 'Review submitted successfully and pending approval'
+        : `Review submitted successfully and pending approval${isVerifiedPurchase ? ' (Verified Purchase)' : ''}`
     });
 
   } catch (error) {
@@ -1623,6 +1795,128 @@ const getReviewById = async (req, res) => {
   }
 };
 
+// // @desc    Update review
+// // @route   PUT /api/reviews/:id
+// // @access  Private (Owner or Admin/Mod)
+// const updateReview = async (req, res) => {
+//   try {
+//     const review = await Review.findById(req.params.id);
+
+//     if (!review) {
+//       return res.status(404).json({
+//         success: false,
+//         error: 'Review not found'
+//       });
+//     }
+
+//     // Check permissions - FIX: Handle case when review.user is null (guest review)
+//     const isOwner = review.user && review.user.toString() === req.user.id;
+//     const isModerator = req.user.role === 'moderator';
+//     const isAdmin = req.user.role === 'admin';
+
+//     // For guest reviews, only admin/moderator can edit
+//     if (!review.user) {
+//       if (!isModerator && !isAdmin) {
+//         return res.status(403).json({
+//           success: false,
+//           error: 'Only admins and moderators can edit guest reviews'
+//         });
+//       }
+//     } else if (!isOwner && !isModerator && !isAdmin) {
+//       return res.status(403).json({
+//         success: false,
+//         error: 'You are not authorized to update this review'
+//       });
+//     }
+
+//     // Regular users can only update their own pending reviews
+//     if (isOwner && !isModerator && !isAdmin && review.status !== 'pending') {
+//       return res.status(400).json({
+//         success: false,
+//         error: 'You can only edit pending reviews'
+//       });
+//     }
+
+//     const {
+//       rating,
+//       title,
+//       comment,
+//       images,
+//       video,
+//       isAnonymous,
+//       status,
+//       imagesToDelete,
+//       videoToDelete,
+//       newImages,
+//       newVideo
+//     } = req.body;
+
+//     // Update fields
+//     if (rating) review.rating = rating;
+//     if (title !== undefined) review.title = title;
+//     if (comment) review.comment = comment.trim();
+//     if (isAnonymous !== undefined && review.user) review.isAnonymous = isAnonymous;
+    
+//     // Update status (admin/mod only)
+//     if (status && (isModerator || isAdmin)) {
+//       review.status = status;
+//       if (status === 'approved') {
+//         review.isApproved = true;
+//       } else if (status === 'rejected') {
+//         review.isApproved = false;
+//       }
+//     }
+
+//     // Handle image deletion
+//     if (imagesToDelete && imagesToDelete.length > 0 && (isModerator || isAdmin)) {
+//       for (const publicId of imagesToDelete) {
+//         try {
+//           await cloudinary.uploader.destroy(publicId);
+//         } catch (err) {
+//           console.error('Failed to delete image:', err);
+//         }
+//       }
+//       review.images = review.images.filter(img => !imagesToDelete.includes(img.publicId));
+//     }
+
+//     // Handle video deletion
+//     if (videoToDelete && (isModerator || isAdmin)) {
+//       try {
+//         await cloudinary.uploader.destroy(videoToDelete, { resource_type: 'video' });
+//       } catch (err) {
+//         console.error('Failed to delete video:', err);
+//       }
+//       review.video = null;
+//     }
+
+//     // Add new images
+//     if (newImages && newImages.length > 0 && (isModerator || isAdmin)) {
+//       review.images = [...(review.images || []), ...newImages];
+//     }
+
+//     // Add new video
+//     if (newVideo && (isModerator || isAdmin)) {
+//       review.video = newVideo;
+//     }
+
+//     await review.save();
+
+//     res.json({
+//       success: true,
+//       data: review,
+//       message: 'Review updated successfully'
+//     });
+
+//   } catch (error) {
+//     console.error('Update review error:', error);
+//     res.status(500).json({
+//       success: false,
+//       error: error.message || 'Failed to update review'
+//     });
+//   }
+// };
+
+
 // @desc    Update review
 // @route   PUT /api/reviews/:id
 // @access  Private (Owner or Admin/Mod)
@@ -1637,12 +1931,20 @@ const updateReview = async (req, res) => {
       });
     }
 
-    // Check permissions
-    const isOwner = review.user.toString() === req.user.id;
+    // Check permissions - Handle case when review.user is null (guest review)
+    const isOwner = review.user && review.user.toString() === req.user.id;
     const isModerator = req.user.role === 'moderator';
     const isAdmin = req.user.role === 'admin';
 
-    if (!isOwner && !isModerator && !isAdmin) {
+    // For guest reviews, only admin/moderator can edit
+    if (!review.user) {
+      if (!isModerator && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          error: 'Only admins and moderators can edit guest reviews'
+        });
+      }
+    } else if (!isOwner && !isModerator && !isAdmin) {
       return res.status(403).json({
         success: false,
         error: 'You are not authorized to update this review'
@@ -1650,7 +1952,7 @@ const updateReview = async (req, res) => {
     }
 
     // Regular users can only update their own pending reviews
-    if (isOwner && review.status !== 'pending') {
+    if (isOwner && !isModerator && !isAdmin && review.status !== 'pending') {
       return res.status(400).json({
         success: false,
         error: 'You can only edit pending reviews'
@@ -1661,20 +1963,82 @@ const updateReview = async (req, res) => {
       rating,
       title,
       comment,
-      images,
-      video,
-      isAnonymous
+      isAnonymous,
+      status,
+      isFeatured,
+      imagesToDelete,
+      videoToDelete,
+      newImages,
+      newVideo
     } = req.body;
 
-    // Update fields
-    if (rating) review.rating = rating;
+    // Update text fields (always allowed for owner or admin/mod)
+    if (rating !== undefined) review.rating = rating;
     if (title !== undefined) review.title = title;
-    if (comment) review.comment = comment.trim();
-    if (images) review.images = images;
-    if (video !== undefined) review.video = video;
-    if (isAnonymous !== undefined) review.isAnonymous = isAnonymous;
+    if (comment !== undefined) review.comment = comment.trim();
+    if (isAnonymous !== undefined && review.user) review.isAnonymous = isAnonymous;
+    
+    // Update status (admin/mod only)
+    if (status && (isModerator || isAdmin)) {
+      review.status = status;
+      if (status === 'approved') {
+        review.isApproved = true;
+      } else if (status === 'rejected') {
+        review.isApproved = false;
+      }
+    }
+     if (isFeatured !== undefined && (isModerator || isAdmin)) {
+      review.isFeatured = isFeatured;
+    }
+
+
+    // Handle image deletion - Allow owner OR admin/mod
+    if (imagesToDelete && imagesToDelete.length > 0 && (isOwner || isModerator || isAdmin)) {
+      for (const publicId of imagesToDelete) {
+        try {
+          await cloudinary.uploader.destroy(publicId);
+          console.log(`Deleted image: ${publicId}`);
+        } catch (err) {
+          console.error('Failed to delete image:', err);
+        }
+      }
+      // Filter out deleted images from review
+      review.images = review.images.filter(img => !imagesToDelete.includes(img.publicId));
+    }
+
+    // Handle video deletion - Allow owner OR admin/mod
+    if (videoToDelete && (isOwner || isModerator || isAdmin)) {
+      try {
+        await cloudinary.uploader.destroy(videoToDelete, { resource_type: 'video' });
+        console.log(`Deleted video: ${videoToDelete}`);
+      } catch (err) {
+        console.error('Failed to delete video:', err);
+      }
+      review.video = null;
+    }
+
+    // Add new images - Allow owner OR admin/mod
+    if (newImages && newImages.length > 0 && (isOwner || isModerator || isAdmin)) {
+      // Ensure images array exists
+      if (!review.images) review.images = [];
+      // Add new images
+      review.images = [...review.images, ...newImages];
+      console.log(`Added ${newImages.length} new images`);
+    }
+
+    // Add new video - Allow owner OR admin/mod
+    if (newVideo && (isOwner || isModerator || isAdmin)) {
+      review.video = newVideo;
+      console.log('Added new video');
+    }
 
     await review.save();
+
+    console.log('Review updated successfully:', {
+      id: review._id,
+      imagesCount: review.images?.length,
+      hasVideo: !!review.video
+    });
 
     res.json({
       success: true,
@@ -2059,6 +2423,79 @@ const getReviewStats = async (req, res) => {
   }
 };
 
+// @desc    Toggle featured status of a review (Admin/Mod only)
+// @route   PUT /api/reviews/:id/featured
+// @access  Private (Admin/Mod)
+const toggleFeatured = async (req, res) => {
+  try {
+    const review = await Review.findById(req.params.id);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        error: 'Review not found'
+      });
+    }
+
+    // Only admin or moderator can toggle featured
+    if (req.user.role !== 'admin' && req.user.role !== 'moderator') {
+      return res.status(403).json({
+        success: false,
+        error: 'Only admins and moderators can feature reviews'
+      });
+    }
+
+    // Toggle the featured status
+    review.isFeatured = !review.isFeatured;
+    await review.save();
+
+    res.json({
+      success: true,
+      data: review,
+      message: review.isFeatured ? 'Review featured successfully' : 'Review removed from featured'
+    });
+
+  } catch (error) {
+    console.error('Toggle featured error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to toggle featured status'
+    });
+  }
+};
+
+// @desc    Get featured reviews
+// @route   GET /api/reviews/featured
+// @access  Public
+const getFeaturedReviews = async (req, res) => {
+  try {
+    const { limit = 6 } = req.query;
+
+    const reviews = await Review.find({
+      isFeatured: true,
+      status: 'approved',
+      isApproved: true
+    })
+      .populate('user', 'contactPerson email profilePicture')
+      .populate('product', 'productName slug images')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    res.json({
+      success: true,
+      data: reviews,
+      count: reviews.length
+    });
+
+  } catch (error) {
+    console.error('Get featured reviews error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch featured reviews'
+    });
+  }
+};
+
 module.exports = {
   createReview,
   getReviews,
@@ -2071,5 +2508,7 @@ module.exports = {
   replyToReview,
   getMyReviews,
   uploadMedia,
-  getReviewStats
+  getReviewStats,
+  toggleFeatured,
+  getFeaturedReviews
 };
