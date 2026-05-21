@@ -1454,6 +1454,7 @@ const getProductsByAgeGroup = async (req, res) => {
   }
 };
 
+
 // @desc    Get flash sale products
 // @route   GET /api/products/flash-sale
 // @access  Public
@@ -1466,8 +1467,9 @@ const getFlashSaleProducts = async (req, res) => {
       isActive: true,
       discountPrice: { $gt: 0 }
     })
+      .populate('category', 'name slug')  // <-- ADD THIS to populate category
       .limit(parseInt(limit))
-      .select('productName slug regularPrice discountPrice images rating stockQuantity');
+      .select('productName slug regularPrice discountPrice images rating stockQuantity ageGroup category'); // <-- ADD ageGroup and category to select
 
     res.json({
       success: true,

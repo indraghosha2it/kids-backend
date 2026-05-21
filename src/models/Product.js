@@ -545,7 +545,7 @@ codAvailable: {
   }],
   promotion: {
     type: String,
-    enum: ['flash-sale', 'featured', 'trending', 'clearance', 'holiday-special', 'bundle-deal', 'limited-stock', ''],
+    enum: ['flash-sale', 'new-arrival', 'trending', 'clearance', 'holiday-special', 'bundle-deal', 'limited-stock', ''],
     default: ''
   },
   isFeatured: {

@@ -2,8 +2,15 @@ const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const Coupon = require('../models/Coupon');
+const { 
+  sendOrderPlacedEmail, 
+  sendOrderNotificationToAdmin,
+  sendOrderStatusUpdateEmail ,
+  sendPaymentStatusUpdateEmail
+} = require('../utils/orderEmailService') ;
 
-// @desc    Create new order
+
+// @desc    Create new order (or create pending order for online payment)
 // @route   POST /api/orders
 // @access  Public (with sessionId) or Private (with token)
 // const createOrder = async (req, res) => {
@@ -18,7 +25,9 @@ const Coupon = require('../models/Coupon');
 //       customerInfo,
 //       couponCode,
 //       couponDiscount,
-//       freeShipping
+//       freeShipping,
+//       orderStatus = 'pending',  // Default to pending
+//       saveOrder = true  // Default to true for COD
 //     } = req.body;
 
 //     const userId = req.user?._id;
@@ -37,7 +46,58 @@ const Coupon = require('../models/Coupon');
 //       return res.status(400).json({ success: false, error: 'Payment method is required' });
 //     }
 
-//     // Verify stock availability before creating order
+//     // For online payment, we don't need to check stock or create order yet
+//     // Just prepare the order data and return it
+//     if (paymentMethod === 'online' && !saveOrder) {
+//       // Just prepare the data without saving
+//       const orderData = {
+//         userId: userId || null,
+//         sessionId: userId ? null : sessionId,
+//         items: items.map(item => ({
+//           productId: item.productId,
+//           productName: item.productName,
+//           productSlug: item.productSlug,
+//           image: item.image,
+//           regularPrice: item.regularPrice,
+//           discountPrice: item.discountPrice,
+//           quantity: item.quantity,
+//           stockQuantity: item.stockQuantity
+//         })),
+//         customerInfo: {
+//           fullName: customerInfo.fullName,
+//           email: customerInfo.email,
+//           phone: customerInfo.phone,
+//           whatsapp: customerInfo.whatsapp || '',
+//           address: customerInfo.address,
+//           city: customerInfo.city,
+//           zone: customerInfo.zone,
+//           area: customerInfo.area || '',
+//           zipCode: customerInfo.zipCode || '',
+//           country: customerInfo.country || 'Bangladesh',
+//           note: customerInfo.note || ''
+//         },
+//         subtotal,
+//         shippingCost,
+//         discount: discount || 0,
+//         total,
+//         paymentMethod,
+//         paymentStatus: 'pending',
+//         orderStatus: 'pending',  // Not placed yet
+//         couponCode: couponCode || null,
+//         couponDiscount: couponDiscount || 0,
+//         freeShipping: freeShipping || false,
+//         orderDate: new Date()
+//       };
+      
+//       // Return the order data without saving
+//       return res.status(200).json({
+//         success: true,
+//         data: orderData,
+//         message: 'Order data prepared'
+//       });
+//     }
+
+//     // For COD - Verify stock and create order
 //     for (const item of items) {
 //       const product = await Product.findById(item.productId);
 //       if (!product) {
@@ -84,10 +144,10 @@ const Coupon = require('../models/Coupon');
 //       total,
 //       paymentMethod,
 //       paymentStatus: paymentMethod === 'cod' ? 'pending' : 'pending',
+//       orderStatus: orderStatus === 'pending' ? 'placed' : orderStatus,
 //       couponCode: couponCode || null,
 //       couponDiscount: couponDiscount || 0,
 //       freeShipping: freeShipping || false,
-//       orderStatus: 'placed',
 //       orderDate: new Date()
 //     });
 
@@ -125,24 +185,21 @@ const Coupon = require('../models/Coupon');
 //         }
 //       } catch (couponError) {
 //         console.error('Error recording coupon usage:', couponError);
-//         // Don't fail the order if coupon recording fails
 //       }
 //     }
 
-//     // Populate order details for response
-//    res.status(201).json({
-//   success: true,
-//   data: order,
-//   orderId: order._id,
-//   message: 'Order placed successfully'
-// });
+//     res.status(201).json({
+//       success: true,
+//       data: order,
+//       orderId: order._id,
+//       message: 'Order placed successfully'
+//     });
 
 //   } catch (error) {
 //     console.error('Create order error:', error);
 //     res.status(500).json({ success: false, error: error.message });
 //   }
 // };
-
 
 // @desc    Create new order (or create pending order for online payment)
 // @route   POST /api/orders
@@ -322,6 +379,20 @@ const createOrder = async (req, res) => {
       }
     }
 
+    // ========== SEND EMAIL NOTIFICATIONS ==========
+    try {
+      // Send order placed email to customer
+      await sendOrderPlacedEmail(order, order.customerInfo.email);
+      console.log('✅ Order placed email sent to customer for order:', order.orderNumber);
+      
+      // Send notification email to admin
+      await sendOrderNotificationToAdmin(order);
+      console.log('✅ Admin notification email sent for order:', order.orderNumber);
+    } catch (emailError) {
+      console.error('❌ Email sending error:', emailError);
+      // Don't fail the order if email fails
+    }
+
     res.status(201).json({
       success: true,
       data: order,
@@ -433,13 +504,15 @@ const getOrderById = async (req, res) => {
   }
 };
 
+
+
 // @desc    Update order status (Admin/Moderator)
 // @route   PUT /api/orders/:id/status
 // @access  Private (Admin/Moderator)
 // const updateOrderStatus = async (req, res) => {
 //   try {
 //     const { id } = req.params;
-//     const { orderStatus, trackingNumber, deliveryNote } = req.body;
+//     const { orderStatus, trackingNumber, deliveryNote, cancellationReason } = req.body;
     
 //     const order = await Order.findById(id);
     
@@ -447,7 +520,7 @@ const getOrderById = async (req, res) => {
 //       return res.status(404).json({ success: false, error: 'Order not found' });
 //     }
     
-// const validStatuses = ['placed', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+//     const validStatuses = ['placed', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
     
 //     if (orderStatus && !validStatuses.includes(orderStatus)) {
 //       return res.status(400).json({ success: false, error: 'Invalid order status' });
@@ -458,9 +531,12 @@ const getOrderById = async (req, res) => {
 //       order.deliveredAt = new Date();
 //     }
     
-//     // If order is being cancelled, set cancelled date
+//     // If order is being cancelled, set cancelled date and reason
 //     if (orderStatus === 'cancelled' && order.orderStatus !== 'cancelled') {
 //       order.cancelledAt = new Date();
+//       if (cancellationReason) {
+//         order.cancellationReason = cancellationReason;
+//       }
       
 //       // Restore stock for cancelled order
 //       for (const item of order.items) {
@@ -489,6 +565,7 @@ const getOrderById = async (req, res) => {
 //   }
 // };
 
+
 // @desc    Update order status (Admin/Moderator)
 // @route   PUT /api/orders/:id/status
 // @access  Private (Admin/Moderator)
@@ -509,9 +586,18 @@ const updateOrderStatus = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid order status' });
     }
     
-    // If order is being delivered, set delivered date
+    // Store old status before updating
+    const oldStatus = order.orderStatus;
+    
+    // If order is being delivered, set delivered date AND update payment status for COD orders
     if (orderStatus === 'delivered' && order.orderStatus !== 'delivered') {
       order.deliveredAt = new Date();
+      
+      // For COD orders, automatically mark payment as paid when delivered
+      if (order.paymentMethod === 'cod' && order.paymentStatus !== 'paid') {
+        order.paymentStatus = 'paid';
+        console.log(`✅ COD order ${order.orderNumber} - Payment status auto-updated to Paid on delivery`);
+      }
     }
     
     // If order is being cancelled, set cancelled date and reason
@@ -536,10 +622,20 @@ const updateOrderStatus = async (req, res) => {
     
     await order.save();
     
+    // ========== SEND STATUS UPDATE EMAIL TO CUSTOMER ==========
+    if (oldStatus !== orderStatus) {
+      try {
+        await sendOrderStatusUpdateEmail(order, order.customerInfo.email, oldStatus, orderStatus);
+        console.log('✅ Status update email sent to customer for order:', order.orderNumber);
+      } catch (emailError) {
+        console.error('❌ Status update email error:', emailError);
+      }
+    }
+    
     res.json({
       success: true,
       data: order,
-      message: `Order status updated to ${orderStatus}`
+      message: `Order status updated to ${orderStatus}${order.paymentStatus === 'paid' && order.paymentMethod === 'cod' ? ' and payment marked as Paid' : ''}`
     });
     
   } catch (error) {
@@ -547,6 +643,83 @@ const updateOrderStatus = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// @desc    Update payment status (Admin/Moderator)
+// @route   PUT /api/orders/:id/payment
+// @access  Private (Admin/Moderator)
+// const updatePaymentStatus = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { paymentStatus, paymentDetails } = req.body;
+    
+//     const order = await Order.findById(id);
+    
+//     if (!order) {
+//       return res.status(404).json({ success: false, error: 'Order not found' });
+//     }
+    
+//     const validStatuses = ['pending', 'paid', 'failed', 'refunded'];
+    
+//     if (!validStatuses.includes(paymentStatus)) {
+//       return res.status(400).json({ success: false, error: 'Invalid payment status' });
+//     }
+    
+//     // Validate status transitions
+//     const currentStatus = order.paymentStatus;
+    
+//     // Pending → Paid or Failed
+//     if (currentStatus === 'pending') {
+//       if (!['paid', 'failed'].includes(paymentStatus)) {
+//         return res.status(400).json({ 
+//           success: false, 
+//           error: 'Pending status can only be changed to Paid or Failed' 
+//         });
+//       }
+//     }
+//     // Failed → Paid only
+//     else if (currentStatus === 'failed') {
+//       if (paymentStatus !== 'paid') {
+//         return res.status(400).json({ 
+//           success: false, 
+//           error: 'Failed status can only be changed to Paid' 
+//         });
+//       }
+//     }
+//     // Paid → Refunded only
+//     else if (currentStatus === 'paid') {
+//       if (paymentStatus !== 'refunded') {
+//         return res.status(400).json({ 
+//           success: false, 
+//           error: 'Paid status can only be changed to Refunded' 
+//         });
+//       }
+//     }
+//     // Refunded → No changes allowed
+//     else if (currentStatus === 'refunded') {
+//       return res.status(400).json({ 
+//         success: false, 
+//         error: 'Refunded status cannot be changed further' 
+//       });
+//     }
+    
+//     order.paymentStatus = paymentStatus;
+//     if (paymentDetails) {
+//       order.paymentDetails = { ...order.paymentDetails, ...paymentDetails };
+//     }
+    
+//     await order.save();
+    
+//     res.json({
+//       success: true,
+//       data: order,
+//       message: `Payment status updated to ${paymentStatus}`
+//     });
+    
+//   } catch (error) {
+//     console.error('Update payment status error:', error);
+//     res.status(500).json({ success: false, error: error.message });
+//   }
+// };
 
 // @desc    Update payment status (Admin/Moderator)
 // @route   PUT /api/orders/:id/payment
@@ -568,8 +741,12 @@ const updatePaymentStatus = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid payment status' });
     }
     
+    // Store old status before updating
+    const oldStatus = order.paymentStatus;
+    
     // Validate status transitions
     const currentStatus = order.paymentStatus;
+    const orderStatus = order.orderStatus;
     
     // Pending → Paid or Failed
     if (currentStatus === 'pending') {
@@ -589,13 +766,17 @@ const updatePaymentStatus = async (req, res) => {
         });
       }
     }
-    // Paid → Refunded only
+    // Paid → Refunded only (allow for cancelled or delivered orders, or manual refund)
     else if (currentStatus === 'paid') {
       if (paymentStatus !== 'refunded') {
         return res.status(400).json({ 
           success: false, 
           error: 'Paid status can only be changed to Refunded' 
         });
+      }
+      // Optional: Add warning but still allow
+      if (orderStatus !== 'cancelled' && orderStatus !== 'delivered') {
+        console.log(`Warning: Changing payment to refunded for order ${order.orderNumber} with status ${orderStatus}`);
       }
     }
     // Refunded → No changes allowed
@@ -613,6 +794,17 @@ const updatePaymentStatus = async (req, res) => {
     
     await order.save();
     
+    // ========== SEND PAYMENT STATUS UPDATE EMAIL TO CUSTOMER ==========
+    if (oldStatus !== paymentStatus) {
+      try {
+        await sendPaymentStatusUpdateEmail(order, order.customerInfo.email, oldStatus, paymentStatus);
+        console.log('✅ Payment status update email sent to customer for order:', order.orderNumber);
+      } catch (emailError) {
+        console.error('❌ Payment status update email error:', emailError);
+        // Don't fail the payment status update if email fails
+      }
+    }
+    
     res.json({
       success: true,
       data: order,
@@ -624,7 +816,6 @@ const updatePaymentStatus = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
-
 // @desc    Cancel order (User)
 // @route   PUT /api/orders/:id/cancel
 // @access  Public (with sessionId) or Private (with token)

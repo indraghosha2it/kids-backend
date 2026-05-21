@@ -45,21 +45,22 @@ const blogSchema = new mongoose.Schema({
     required: [true, 'Author name is required'],
     trim: true
   },
-  category: {
-    type: String,
-    required: [true, 'Category is required'],
-   enum: [
-    'eco-sustainability',
-    'jute-product-guides',
-    'manufacturing-process',
-    'bulk-buying-export',
-    'jute-industry-trends',
-    'jute-craft-diy',
-    'product-spotlights',
-    'customer-stories',
-    'business-insights'
+category: {
+  type: String,
+  required: [true, 'Category is required'],
+  enum: [
+    'parenting-kids',
+    'toys-games',
+    'education-learning',
+    'gift-guides',
+    'kids-activities',
+    'child-development',
+    'trends-news',
+    'health-safety',
+    'lifestyle-family',
+    'sustainability-eco-friendly'
   ]
-  },
+},
   excerpt: {
     type: String,
     required: [true, 'Excerpt is required'],

@@ -12,18 +12,15 @@ router.post('/', async (req, res) => {
       name,
       email,
       phone,
-      company,
-      country,
-      inquiryType,
-      message,
-      productInterest
+      subject,
+      message
     } = req.body;
 
     // Validate required fields
-    if (!name || !email || !phone || !message) {
+    if (!name || !email || !phone || !subject || !message) {
       return res.status(400).json({
         success: false,
-        error: 'Please provide name, email, phone and message'
+        error: 'Please provide name, email, phone, subject and message'
       });
     }
 
@@ -36,16 +33,22 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Validate phone (basic validation)
+    const phoneRegex = /^[0-9+\-\s()]{8,20}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide a valid phone number'
+      });
+    }
+
     // Send emails
     const result = await sendContactFormEmails({
       name,
       email,
       phone,
-      company,
-      country,
-      inquiryType: inquiryType || 'wholesale',
-      message,
-      productInterest
+      subject,
+      message
     });
 
     if (!result.success) {
@@ -57,7 +60,7 @@ router.post('/', async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Thank you for your message! We will get back to you within 2 hours.'
+      message: 'Thank you for your message! We will get back to you within 24 hours.'
     });
 
   } catch (error) {
