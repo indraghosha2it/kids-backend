@@ -372,9 +372,7 @@ const createProduct = async (req, res) => {
     if (!brand) {
       return res.status(400).json({ success: false, error: 'Brand is required' });
     }
-    if (!ageGroup) {
-      return res.status(400).json({ success: false, error: 'Age group is required' });
-    }
+ 
     if (regularPrice <= 0) {
       return res.status(400).json({ success: false, error: 'Regular price must be greater than 0' });
     }
@@ -631,9 +629,16 @@ const getProducts = async (req, res) => {
     }
 
     // Age group filter
-    if (ageGroup) {
-      query.ageGroup = ageGroup;
-    }
+    // if (ageGroup) {
+    //   query.ageGroup = ageGroup;
+    // }
+    // Age group filter - handle "no age group" case
+if (ageGroup) {
+  query.ageGroup = ageGroup;
+} else if (req.query.noAgeGroup === 'true') {
+  // Filter products with empty or null ageGroup
+  query.ageGroup = { $in: ['', null] };
+}
 
     // Brand filter
     if (brand) {
@@ -1027,7 +1032,7 @@ const updateProduct = async (req, res) => {
     if (shortDescription && shortDescription !== '<p></p>') product.shortDescription = shortDescription;
     if (fullDescription && fullDescription !== '<p></p>') product.fullDescription = fullDescription;
     if (brand) product.brand = brand;
-    if (ageGroup) product.ageGroup = ageGroup;
+   if (ageGroup !== undefined) product.ageGroup = ageGroup;
     if (stockQuantity !== undefined) product.stockQuantity = stockQuantity;
     if (skuCode) product.skuCode = skuCode;
     if (regularPrice !== undefined) product.regularPrice = regularPrice;

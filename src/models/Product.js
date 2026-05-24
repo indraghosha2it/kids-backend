@@ -148,11 +148,20 @@ const productSchema = new mongoose.Schema({
     required: [true, 'Brand is required'],
     trim: true
   },
-  ageGroup: {
-    type: String,
-    required: [true, 'Age group is required'],
-    enum: ['0-2', '3-5', '6-10', '11-14']
-  },
+  // ageGroup: {
+  //   type: String,
+  //   required: [true, 'Age group is required'],
+  //   enum: ['0-2', '3-5', '6-10', '11-14']
+  // },
+
+  // Change from required to optional
+ageGroup: {
+  type: String,
+  required: false,  // Change from true to false
+  enum: ['0-2', '3-5', '6-10', '11-14', '']  // Add empty string as valid value
+  // OR you can remove the enum validation entirely:
+  // enum: ['0-2', '3-5', '6-10', '11-14', '']
+},
 
   // Pricing
   regularPrice: {

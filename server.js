@@ -55,6 +55,7 @@ const app = express();
 const allowedOrigins = [
   'hhttps://gregarious-profiterole-514180.netlify.app',
    'http://localhost:3000',
+   'https://kidplay.a2itltd.com',
 
   'http://localhost:3001',
   'http://localhost:5000',

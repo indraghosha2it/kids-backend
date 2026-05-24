@@ -386,7 +386,7 @@ const createOrder = async (req, res) => {
       console.log('✅ Order placed email sent to customer for order:', order.orderNumber);
       
       // Send notification email to admin
-      await sendOrderNotificationToAdmin(order);
+      await sendOrderNotificationToAdmin(order, 'new');
       console.log('✅ Admin notification email sent for order:', order.orderNumber);
     } catch (emailError) {
       console.error('❌ Email sending error:', emailError);
@@ -630,7 +630,16 @@ const updateOrderStatus = async (req, res) => {
       } catch (emailError) {
         console.error('❌ Status update email error:', emailError);
       }
+
+      // ========== ALSO SEND NOTIFICATION TO ADMIN ==========
+      try {
+        await sendOrderNotificationToAdmin(order, 'status_update');
+        console.log('✅ Status update notification sent to admin for order:', order.orderNumber);
+      } catch (emailError) {
+        console.error('❌ Admin notification error on status update:', emailError);
+      }
     }
+    
     
     res.json({
       success: true,
@@ -802,6 +811,14 @@ const updatePaymentStatus = async (req, res) => {
       } catch (emailError) {
         console.error('❌ Payment status update email error:', emailError);
         // Don't fail the payment status update if email fails
+      }
+
+       // ========== ALSO SEND NOTIFICATION TO ADMIN ==========
+      try {
+        await sendOrderNotificationToAdmin(order, 'payment_update');
+        console.log('✅ Payment status update notification sent to admin for order:', order.orderNumber);
+      } catch (emailError) {
+        console.error('❌ Admin notification error on payment update:', emailError);
       }
     }
     

@@ -80,7 +80,7 @@ const categoryStorage = new CloudinaryStorage({
 const productStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'jute-products',
+    folder: 'toys-products',
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
     transformation: [{ width: 1200, height: 1200, crop: 'limit' }]
   }
