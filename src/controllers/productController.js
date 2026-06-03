@@ -65,249 +65,6 @@ const updateEmbeddedProductInCategory = async (categoryId, productId, updateData
   }
 };
 
-// @desc    Create new product
-// @route   POST /api/products
-// @access  Private (Moderator/Admin)
-// const createProduct = async (req, res) => {
-//   try {
-//     console.log('Create product request received');
-//     console.log('Body:', req.body);
-
-//     const {
-//       productName,
-//       shortDescription,
-//       fullDescription,
-//       category,
-//       subcategory,
-//       childSubcategory,
-//       brand,
-//       ageGroup,
-//       stockQuantity,
-//       skuCode,
-//       regularPrice,
-//       discountPrice,
-//       deliveryInfo,
-//       codAvailable,
-//       tags,
-//       promotion,
-//       isFeatured,
-//       rating,
-//       additionalInfo,
-//       videoUrl,
-//       videoPublicId,
-//       videoType,
-//       metaSettings,
-//       images
-//     } = req.body;
-
-//     // Validation
-//     if (!productName) {
-//       return res.status(400).json({ success: false, error: 'Product name is required' });
-//     }
-//      const existingProduct = await Product.findOne({ 
-//       productName: { $regex: new RegExp(`^${productName}$`, 'i') } 
-//     });
-    
-//     if (existingProduct) {
-//       return res.status(400).json({ 
-//         success: false, 
-//         error: `Product name "${productName}" already exists. Please use a different product name.` 
-//       });
-//     }
-//     if (!shortDescription || shortDescription === '<p></p>') {
-//       return res.status(400).json({ success: false, error: 'Short description is required' });
-//     }
-//     if (!fullDescription || fullDescription === '<p></p>') {
-//       return res.status(400).json({ success: false, error: 'Full description is required' });
-//     }
-//     if (!category) {
-//       return res.status(400).json({ success: false, error: 'Category is required' });
-//     }
-//     if (!brand) {
-//       return res.status(400).json({ success: false, error: 'Brand is required' });
-//     }
-//     if (!ageGroup) {
-//       return res.status(400).json({ success: false, error: 'Age group is required' });
-//     }
-//     if (regularPrice <= 0) {
-//       return res.status(400).json({ success: false, error: 'Regular price must be greater than 0' });
-//     }
-//     if (discountPrice > regularPrice) {
-//       return res.status(400).json({ success: false, error: 'Discount price cannot exceed regular price' });
-//     }
-//    if (!deliveryInfo || deliveryInfo === '<p></p>') {
-//   return res.status(400).json({ success: false, error: 'Delivery information is required' });
-// }
-//     if (!images || !Array.isArray(images) || images.length === 0) {
-//       return res.status(400).json({ success: false, error: 'At least one product image is required' });
-//     }
-
-//     // Check if category exists
-//     const categoryExists = await Category.findById(category);
-//     if (!categoryExists) {
-//       return res.status(400).json({ success: false, error: 'Invalid category' });
-//     }
-
-//     let categoryName = categoryExists.name;
-//     let subcategoryName = '';
-//     let childSubcategoryName = '';
-
-//     // Get subcategory name if provided
-//     if (subcategory) {
-//       const subcategoryDoc = categoryExists.subcategories.id(subcategory);
-//       if (subcategoryDoc) {
-//         subcategoryName = subcategoryDoc.name;
-//       }
-//     }
-
-//     // Get child subcategory name if provided
-//     if (childSubcategory && subcategory) {
-//       const subcategoryDoc = categoryExists.subcategories.id(subcategory);
-//       if (subcategoryDoc) {
-//         const childDoc = subcategoryDoc.children.id(childSubcategory);
-//         if (childDoc) {
-//           childSubcategoryName = childDoc.name;
-//         }
-//       }
-//     }
-
-//     // Process images
-//     const processedImages = images.map((url, index) => ({
-//       url: url,
-//       publicId: extractPublicIdFromUrl(url),
-//       isPrimary: index === 0
-//     }));
-
-//     // Process additional info
-// // Process additional info - FIXED VERSION
-// let processedAdditionalInfo = [];
-// console.log('=== DEBUGGING ADDITIONAL INFO ===');
-// console.log('Raw additionalInfo:', additionalInfo);
-// console.log('Type:', typeof additionalInfo);
-
-// if (additionalInfo) {
-//   // If it's a string, parse it
-//   let additionalInfoData = additionalInfo;
-//   if (typeof additionalInfo === 'string') {
-//     try {
-//       additionalInfoData = JSON.parse(additionalInfo);
-//       console.log('Parsed from string:', additionalInfoData);
-//     } catch (e) {
-//       console.error('Error parsing additionalInfo string:', e);
-//     }
-//   }
-  
-//   // If it's an array, use it directly
-//   if (Array.isArray(additionalInfoData) && additionalInfoData.length > 0) {
-//     processedAdditionalInfo = additionalInfoData.map(info => ({
-//       fieldName: info.fieldName,
-//       fieldValue: info.fieldValue
-//     }));
-//     console.log('Processed additionalInfo:', processedAdditionalInfo);
-//   } else if (additionalInfoData && typeof additionalInfoData === 'object' && !Array.isArray(additionalInfoData)) {
-//     // Handle case where it might be an object
-//     console.log('additionalInfo is an object, converting to array');
-//     processedAdditionalInfo = [{
-//       fieldName: additionalInfoData.fieldName || '',
-//       fieldValue: additionalInfoData.fieldValue || ''
-//     }];
-//   }
-// }
-
-// console.log('Final processedAdditionalInfo:', processedAdditionalInfo);
-
-//     // Process meta settings
-//     let processedMetaSettings = {};
-//     if (metaSettings) {
-//       processedMetaSettings = {
-//         metaTitle: metaSettings.metaTitle || '',
-//         metaDescription: metaSettings.metaDescription || '',
-//         metaKeywords: metaSettings.metaKeywords || []
-//       };
-//     }
-
-//     // Check if SKU already exists (if provided)
-//     if (skuCode) {
-//       const existingProduct = await Product.findOne({ skuCode });
-//       if (existingProduct) {
-//         return res.status(400).json({ success: false, error: 'SKU code already exists' });
-//       }
-//     }
-
-//     // Create product
-//     const product = await Product.create({
-//       productName,
-//       shortDescription,
-//       fullDescription,
-//       category,
-//       categoryName,
-//       subcategory: subcategory || null,
-//       subcategoryName,
-//       childSubcategory: childSubcategory || null,
-//       childSubcategoryName,
-//       brand,
-//       ageGroup,
-//       stockQuantity: stockQuantity || 0,
-      
-//       regularPrice: Number(regularPrice),
-//       discountPrice: Number(discountPrice) || 0,
-//       deliveryInfo,
-//       codAvailable: codAvailable || false,
-//       tags: tags || [],
-//       promotion: promotion || '',
-//       isFeatured: isFeatured || false,
-//       rating: rating || 0,
-//       additionalInfo: processedAdditionalInfo,
-//       videoUrl: videoUrl || '',
-//       videoPublicId: videoPublicId || '',
-//       videoType: videoType || 'upload',
-//       metaSettings: processedMetaSettings,
-//       images: processedImages,
-//       createdBy: req.user.id,
-//       isActive: true
-//     });
-
-//     // Populate references for response
-//     await product.populate([
-//       { path: 'category', select: 'name slug' },
-//       { path: 'createdBy', select: 'name email role' }
-//     ]);
-
-//     res.status(201).json({
-//       success: true,
-//       data: product,
-//       message: 'Product created successfully'
-//     });
-//   } catch (error) {
-//     console.error('Create product error:', error);
-
-//         // Handle duplicate key error (MongoDB error code 11000)
-//     if (error.code === 11000) {
-//       // Check which field caused the duplicate key error
-//       if (error.keyPattern && error.keyPattern.slug) {
-//         return res.status(400).json({
-//           success: false,
-//           error: `Product name "${req.body.productName}" already exists. Please use a different product name.`
-//         });
-//       }
-//       if (error.keyPattern && error.keyPattern.skuCode) {
-//         return res.status(400).json({
-//           success: false,
-//           error: `SKU code already exists. Please try again.`
-//         });
-//       }
-//       return res.status(400).json({
-//         success: false,
-//         error: 'Duplicate entry found. Please check your data and try again.'
-//       });
-//     }
-
-//     res.status(500).json({
-//       success: false,
-//       error: error.message || 'Server error while creating product'
-//     });
-//   }
-// };
 
 // @desc    Create new product
 // @route   POST /api/products
@@ -341,7 +98,8 @@ const createProduct = async (req, res) => {
       videoPublicId,
       videoType,
       metaSettings,
-      images
+      images,
+      barcode
     } = req.body;
 
     // Validation
@@ -358,6 +116,37 @@ const createProduct = async (req, res) => {
         success: false, 
         error: `Product name "${productName}" already exists. Please use a different product name.` 
       });
+    }
+
+    // VALIDATION 2: BARCODE VALIDATION - ADD THIS HERE ↓
+    // ============================================
+    if (barcode) {
+      // Check if barcode is already assigned to any product
+      const existingProductWithBarcode = await Product.findOne({ barcode });
+      if (existingProductWithBarcode) {
+        return res.status(400).json({
+          success: false,
+          error: `Barcode "${barcode}" is already assigned to product: ${existingProductWithBarcode.productName}`
+        });
+      }
+      
+      // Check barcode collection for pre-generated barcodes
+      const Barcode = require('../models/Barcode');
+      const barcodeDoc = await Barcode.findOne({ barcodeNumber: barcode });
+      if (barcodeDoc && barcodeDoc.status === 'assigned') {
+        return res.status(400).json({
+          success: false,
+          error: `Barcode "${barcode}" is already assigned to another product`
+        });
+      }
+      
+      // Optional: Validate barcode format (8-13 digits)
+      if (!/^[0-9]{8,13}$/.test(barcode)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Barcode must be 8-13 digits only'
+        });
+      }
     }
     
     if (!shortDescription || shortDescription === '<p></p>') {
@@ -466,6 +255,7 @@ const createProduct = async (req, res) => {
       videoType: videoType || 'upload',
       metaSettings: processedMetaSettings,
       images: processedImages,
+      barcode: barcode || undefined, 
       createdBy: req.user.id,
       isActive: true
     });

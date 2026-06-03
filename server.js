@@ -27,9 +27,12 @@ const couponRoutes = require('./src/routes/couponRoutes');
 const wishlistRoutes = require('./src/routes/wishlistRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 
+
 const paymentRoutes = require('./src/routes/paymentRoutes');
 // Add this with your other route imports
 const deliveryRoutes = require('./src/routes/deliveryRoutes');
+
+const barcodeRoutes = require('./src/routes/barcodeRoutes');
 
 
 
@@ -143,6 +146,7 @@ app.use('/api/coupons', couponRoutes);
 app.use('/api/payments', paymentRoutes);
 
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api/barcodes', barcodeRoutes);
 
 // Basic test route
 app.get('/api/test', (req, res) => {
