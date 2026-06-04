@@ -481,7 +481,8 @@ if (ageGroup) {
       query.$or = [
         { productName: regex },
         { brand: regex },
-        { fullDescription: regex }
+        { fullDescription: regex },
+         { skuCode: regex }
       ];
     }
 
