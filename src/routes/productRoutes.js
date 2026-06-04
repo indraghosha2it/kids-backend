@@ -145,6 +145,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, isModeratorOrAdmin, isAdmin } = require('../middleware/authMiddleware');
+const { generateUniqueSku, validateSku } = require('../controllers/skuController');
 const {
   createProduct,
   getProducts,
@@ -172,6 +173,11 @@ router.use(protect);
 
 // Review route
 router.post('/:id/review', addProductReview);
+// Generate unique SKU (for admin/moderator)
+router.post('/generate-sku', protect, isModeratorOrAdmin, generateUniqueSku);
+
+// Validate SKU uniqueness
+router.get('/validate-sku/:skuCode', protect, isModeratorOrAdmin, validateSku);
 
 // Moderator/Admin routes
 router.post('/', isModeratorOrAdmin, createProduct);

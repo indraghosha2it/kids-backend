@@ -257,6 +257,7 @@ const createProduct = async (req, res) => {
       metaSettings: processedMetaSettings,
       images: processedImages,
       barcode: barcode || undefined, 
+      skuCode: skuCode || undefined,
       createdBy: req.user.id,
       isActive: true
     });
