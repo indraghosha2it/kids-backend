@@ -1,5 +1,6 @@
 
 
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 
@@ -588,6 +589,8 @@ const getProductById = async (req, res) => {
     });
   }
 };
+
+
 // @desc    Update product
 // @route   PUT /api/products/:id
 // @access  Private (Moderator/Admin)
@@ -628,22 +631,85 @@ const getProductById = async (req, res) => {
 //       videoPublicId,
 //       videoType,
 //       metaSettings,
-//       images
+//       images,
+//       imagesToDelete
 //     } = req.body;
 
-//     // Update basic fields
+//     // Store old values for count updates
+//     const oldCategory = product.category.toString();
+//     const oldSubcategoryId = product.subcategory ? product.subcategory.toString() : null;
+//     const oldChildSubcategoryId = product.childSubcategory ? product.childSubcategory.toString() : null;
+    
+//     const newCategory = category || oldCategory;
+//     let newSubcategoryId = subcategory || null;
+//     let newSubcategoryName = '';
+//     let newChildSubcategoryId = childSubcategory || null;
+//     let newChildSubcategoryName = '';
+
+//     // Handle category change validation
+//     if (category && category !== oldCategory) {
+//       const categoryExists = await Category.findById(category);
+//       if (!categoryExists) {
+//         return res.status(400).json({ success: false, error: 'Invalid category' });
+//       }
+//     }
+
+//     // Get subcategory names if provided
+//     if (newSubcategoryId) {
+//       const categoryDoc = await Category.findById(newCategory);
+//       if (categoryDoc) {
+//         const subcategoryDoc = categoryDoc.subcategories.id(newSubcategoryId);
+//         if (subcategoryDoc) {
+//           newSubcategoryName = subcategoryDoc.name;
+          
+//           if (newChildSubcategoryId) {
+//             const childDoc = subcategoryDoc.children.id(newChildSubcategoryId);
+//             if (childDoc) {
+//               newChildSubcategoryName = childDoc.name;
+//             }
+//           }
+//         }
+//       }
+//     }
+
+//     // Process images if provided
+//     let processedImages = product.images;
+//     if (images && Array.isArray(images) && images.length > 0) {
+//       processedImages = images.map((url, index) => ({
+//         url: url,
+//         publicId: extractPublicIdFromUrl(url),
+//         isPrimary: index === 0
+//       }));
+//     }
+
+//     // Process additional info
+//     let processedAdditionalInfo = product.additionalInfo;
+//     if (additionalInfo && Array.isArray(additionalInfo)) {
+//       processedAdditionalInfo = additionalInfo;
+//     }
+
+//     // Process meta settings
+//     let processedMetaSettings = product.metaSettings;
+//     if (metaSettings) {
+//       processedMetaSettings = {
+//         metaTitle: metaSettings.metaTitle || product.metaSettings?.metaTitle || '',
+//         metaDescription: metaSettings.metaDescription || product.metaSettings?.metaDescription || '',
+//         metaKeywords: metaSettings.metaKeywords || product.metaSettings?.metaKeywords || []
+//       };
+//     }
+
+//     // Update product fields
 //     if (productName) product.productName = productName;
 //     if (shortDescription && shortDescription !== '<p></p>') product.shortDescription = shortDescription;
 //     if (fullDescription && fullDescription !== '<p></p>') product.fullDescription = fullDescription;
 //     if (brand) product.brand = brand;
-//     if (ageGroup) product.ageGroup = ageGroup;
+//    if (ageGroup !== undefined) product.ageGroup = ageGroup;
 //     if (stockQuantity !== undefined) product.stockQuantity = stockQuantity;
 //     if (skuCode) product.skuCode = skuCode;
 //     if (regularPrice !== undefined) product.regularPrice = regularPrice;
 //     if (discountPrice !== undefined) product.discountPrice = discountPrice;
 //     if (deliveryInfo) product.deliveryInfo = deliveryInfo;
 //     if (codAvailable !== undefined) product.codAvailable = codAvailable;
-
 //     if (tags) product.tags = tags;
 //     if (promotion !== undefined) product.promotion = promotion;
 //     if (isFeatured !== undefined) product.isFeatured = isFeatured;
@@ -651,50 +717,213 @@ const getProductById = async (req, res) => {
 //     if (videoUrl !== undefined) product.videoUrl = videoUrl;
 //     if (videoPublicId !== undefined) product.videoPublicId = videoPublicId;
 //     if (videoType !== undefined) product.videoType = videoType;
-//     if (additionalInfo) product.additionalInfo = additionalInfo;
-//     if (metaSettings) product.metaSettings = metaSettings;
+//     if (additionalInfo) product.additionalInfo = processedAdditionalInfo;
+//     if (metaSettings) product.metaSettings = processedMetaSettings;
+//     if (images && Array.isArray(images) && images.length > 0) product.images = processedImages;
 
 //     // Update category if changed
-//     if (category && category !== product.category.toString()) {
-//       const categoryExists = await Category.findById(category);
-//       if (!categoryExists) {
-//         return res.status(400).json({ success: false, error: 'Invalid category' });
-//       }
+//     if (category && category !== oldCategory) {
 //       product.category = category;
-//       product.categoryName = categoryExists.name;
-      
-//       // Update subcategory info
-//       if (subcategory) {
-//         const subcategoryDoc = categoryExists.subcategories.id(subcategory);
-//         if (subcategoryDoc) {
-//           product.subcategory = subcategory;
-//           product.subcategoryName = subcategoryDoc.name;
-//         }
+//       const categoryExists = await Category.findById(category);
+//       if (categoryExists) {
+//         product.categoryName = categoryExists.name;
 //       }
-      
-//       if (childSubcategory && subcategory) {
-//         const subcategoryDoc = categoryExists.subcategories.id(subcategory);
-//         if (subcategoryDoc) {
-//           const childDoc = subcategoryDoc.children.id(childSubcategory);
-//           if (childDoc) {
-//             product.childSubcategory = childSubcategory;
-//             product.childSubcategoryName = childDoc.name;
-//           }
-//         }
+//       product.subcategory = newSubcategoryId;
+//       product.subcategoryName = newSubcategoryName;
+//       product.childSubcategory = newChildSubcategoryId;
+//       product.childSubcategoryName = newChildSubcategoryName;
+//     } else {
+//       // Update subcategory info even if category didn't change
+//       if (subcategory !== undefined) {
+//         product.subcategory = newSubcategoryId;
+//         product.subcategoryName = newSubcategoryName;
 //       }
-//     }
-
-//     // Update images if provided
-//     if (images && Array.isArray(images) && images.length > 0) {
-//       const processedImages = images.map((url, index) => ({
-//         url: url,
-//         publicId: extractPublicIdFromUrl(url),
-//         isPrimary: index === 0
-//       }));
-//       product.images = processedImages;
+//       if (childSubcategory !== undefined) {
+//         product.childSubcategory = newChildSubcategoryId;
+//         product.childSubcategoryName = newChildSubcategoryName;
+//       }
 //     }
 
 //     await product.save();
+
+//     // Prepare data for embedded product update
+//     const embeddedUpdateData = {
+//       productName: product.productName,
+//       shortDescription: product.shortDescription,
+//       fullDescription: product.fullDescription,
+//       brand: product.brand,
+//       ageGroup: product.ageGroup,
+//       images: processedImages,
+//       regularPrice: product.regularPrice,
+//       discountPrice: product.discountPrice,
+//       stockQuantity: product.stockQuantity,
+//       skuCode: product.skuCode,
+//       deliveryInfo: product.deliveryInfo,
+//       codAvailable: product.codAvailable,
+//       tags: product.tags,
+//       promotion: product.promotion,
+//       isFeatured: product.isFeatured,
+//       rating: product.rating,
+//       additionalInfo: processedAdditionalInfo,
+//       videoUrl: product.videoUrl,
+//       videoPublicId: product.videoPublicId,
+//       videoType: product.videoType,
+//       subcategoryId: product.subcategory,
+//       subcategoryName: product.subcategoryName,
+//       childSubcategoryId: product.childSubcategory,
+//       childSubcategoryName: product.childSubcategoryName,
+//       isActive: product.isActive,
+//       updatedAt: new Date()
+//     };
+
+//     // Handle category change
+//     if (category && category !== oldCategory) {
+//       // Remove from old category
+//       await Category.findByIdAndUpdate(
+//         oldCategory,
+//         {
+//           $pull: { products: { productId: product._id } },
+//           $inc: { productCount: -1 }
+//         }
+//       );
+      
+//       // Update subcategory counts for old category
+//       if (oldSubcategoryId) {
+//         await Category.findOneAndUpdate(
+//           { 
+//             _id: oldCategory,
+//             'subcategories._id': oldSubcategoryId
+//           },
+//           { $inc: { 'subcategories.$.productCount': -1 } }
+//         );
+//       }
+      
+//       if (oldChildSubcategoryId && oldSubcategoryId) {
+//         await Category.findOneAndUpdate(
+//           { 
+//             _id: oldCategory,
+//             'subcategories._id': oldSubcategoryId,
+//             'subcategories.children._id': oldChildSubcategoryId
+//           },
+//           { $inc: { 'subcategories.$[sub].children.$[child].productCount': -1 } },
+//           {
+//             arrayFilters: [
+//               { 'sub._id': oldSubcategoryId },
+//               { 'child._id': oldChildSubcategoryId }
+//             ]
+//           }
+//         );
+//       }
+      
+//       // Add to new category
+//       const newEmbeddedProduct = {
+//         productId: product._id,
+//         ...embeddedUpdateData,
+//         createdBy: req.user.id,
+//         createdAt: product.createdAt
+//       };
+      
+//       await Category.findByIdAndUpdate(
+//         newCategory,
+//         {
+//           $push: { products: newEmbeddedProduct },
+//           $inc: { productCount: 1 }
+//         }
+//       );
+      
+//       // Update subcategory counts for new category
+//       if (newSubcategoryId) {
+//         await Category.findOneAndUpdate(
+//           { 
+//             _id: newCategory,
+//             'subcategories._id': newSubcategoryId
+//           },
+//           { $inc: { 'subcategories.$.productCount': 1 } }
+//         );
+//       }
+      
+//       if (newChildSubcategoryId && newSubcategoryId) {
+//         await Category.findOneAndUpdate(
+//           { 
+//             _id: newCategory,
+//             'subcategories._id': newSubcategoryId,
+//             'subcategories.children._id': newChildSubcategoryId
+//           },
+//           { $inc: { 'subcategories.$[sub].children.$[child].productCount': 1 } },
+//           {
+//             arrayFilters: [
+//               { 'sub._id': newSubcategoryId },
+//               { 'child._id': newChildSubcategoryId }
+//             ]
+//           }
+//         );
+//       }
+//     } else {
+//       // Update existing embedded product in same category
+//       await updateEmbeddedProductInCategory(oldCategory, product._id, embeddedUpdateData);
+      
+//       // Handle subcategory count updates if changed
+//       if (oldSubcategoryId !== newSubcategoryId) {
+//         // Decrement old subcategory
+//         if (oldSubcategoryId) {
+//           await Category.findOneAndUpdate(
+//             { 
+//               _id: oldCategory,
+//               'subcategories._id': oldSubcategoryId
+//             },
+//             { $inc: { 'subcategories.$.productCount': -1 } }
+//           );
+//         }
+        
+//         // Increment new subcategory
+//         if (newSubcategoryId) {
+//           await Category.findOneAndUpdate(
+//             { 
+//               _id: oldCategory,
+//               'subcategories._id': newSubcategoryId
+//             },
+//             { $inc: { 'subcategories.$.productCount': 1 } }
+//           );
+//         }
+//       }
+      
+//       // Handle child subcategory count updates if changed
+//       if (oldChildSubcategoryId !== newChildSubcategoryId) {
+//         if (oldChildSubcategoryId && oldSubcategoryId) {
+//           await Category.findOneAndUpdate(
+//             { 
+//               _id: oldCategory,
+//               'subcategories._id': oldSubcategoryId,
+//               'subcategories.children._id': oldChildSubcategoryId
+//             },
+//             { $inc: { 'subcategories.$[sub].children.$[child].productCount': -1 } },
+//             {
+//               arrayFilters: [
+//                 { 'sub._id': oldSubcategoryId },
+//                 { 'child._id': oldChildSubcategoryId }
+//               ]
+//             }
+//           );
+//         }
+        
+//         if (newChildSubcategoryId && newSubcategoryId) {
+//           await Category.findOneAndUpdate(
+//             { 
+//               _id: oldCategory,
+//               'subcategories._id': newSubcategoryId,
+//               'subcategories.children._id': newChildSubcategoryId
+//             },
+//             { $inc: { 'subcategories.$[sub].children.$[child].productCount': 1 } },
+//             {
+//               arrayFilters: [
+//                 { 'sub._id': newSubcategoryId },
+//                 { 'child._id': newChildSubcategoryId }
+//               ]
+//             }
+//           );
+//         }
+//       }
+//     }
 
 //     res.json({
 //       success: true,
@@ -751,8 +980,12 @@ const updateProduct = async (req, res) => {
       videoType,
       metaSettings,
       images,
-      imagesToDelete
+      imagesToDelete,
+      barcode  // <-- ADD THIS LINE
     } = req.body;
+
+    // Store the old barcode for reference (to update Barcode collection)
+    const oldBarcode = product.barcode;
 
     // Store old values for count updates
     const oldCategory = product.category.toString();
@@ -817,12 +1050,12 @@ const updateProduct = async (req, res) => {
       };
     }
 
-    // Update product fields
+    // Update product fields (including barcode)
     if (productName) product.productName = productName;
     if (shortDescription && shortDescription !== '<p></p>') product.shortDescription = shortDescription;
     if (fullDescription && fullDescription !== '<p></p>') product.fullDescription = fullDescription;
     if (brand) product.brand = brand;
-   if (ageGroup !== undefined) product.ageGroup = ageGroup;
+    if (ageGroup !== undefined) product.ageGroup = ageGroup;
     if (stockQuantity !== undefined) product.stockQuantity = stockQuantity;
     if (skuCode) product.skuCode = skuCode;
     if (regularPrice !== undefined) product.regularPrice = regularPrice;
@@ -839,6 +1072,89 @@ const updateProduct = async (req, res) => {
     if (additionalInfo) product.additionalInfo = processedAdditionalInfo;
     if (metaSettings) product.metaSettings = processedMetaSettings;
     if (images && Array.isArray(images) && images.length > 0) product.images = processedImages;
+    
+    // UPDATE BARCODE - ADD THIS SECTION
+    if (barcode !== undefined) {
+      const Barcode = mongoose.model('Barcode');
+      
+      // If barcode is being removed (empty string)
+      if (barcode === '') {
+        // Find and release the barcode from Barcode collection
+        const barcodeDoc = await Barcode.findOne({ barcodeNumber: oldBarcode });
+        if (barcodeDoc) {
+          barcodeDoc.productId = null;
+          barcodeDoc.productSku = '';
+          barcodeDoc.productName = '';
+          barcodeDoc.status = 'available';
+          await barcodeDoc.save();
+        }
+        product.barcode = undefined;
+      } 
+      // If barcode is being changed to a new value
+      else if (barcode !== oldBarcode) {
+        // Validate new barcode is not already assigned to another product
+        const existingProductWithBarcode = await Product.findOne({ 
+          barcode: barcode,
+          _id: { $ne: product._id }
+        });
+        if (existingProductWithBarcode) {
+          return res.status(400).json({
+            success: false,
+            error: `Barcode "${barcode}" is already assigned to product: ${existingProductWithBarcode.productName}`
+          });
+        }
+        
+        // Release the old barcode
+        if (oldBarcode) {
+          const oldBarcodeDoc = await Barcode.findOne({ barcodeNumber: oldBarcode });
+          if (oldBarcodeDoc) {
+            oldBarcodeDoc.productId = null;
+            oldBarcodeDoc.productSku = '';
+            oldBarcodeDoc.productName = '';
+            oldBarcodeDoc.status = 'available';
+            await oldBarcodeDoc.save();
+          }
+        }
+        
+        // Assign the new barcode
+        let barcodeDoc = await Barcode.findOne({ barcodeNumber: barcode });
+        if (barcodeDoc) {
+          // Barcode exists - update its status
+          barcodeDoc.productId = product._id;
+          barcodeDoc.productSku = product.skuCode;
+          barcodeDoc.productName = product.productName;
+          barcodeDoc.status = 'assigned';
+          await barcodeDoc.save();
+        } else {
+          // Barcode doesn't exist - create it
+          const { generateAndUploadBarcodeImage } = require('../utils/generateBarcodeImage');
+          let barcodeImageUrl = '';
+          
+          try {
+            const result = await generateAndUploadBarcodeImage(barcode);
+            barcodeImageUrl = result.url;
+          } catch (imgError) {
+            console.error('Failed to generate barcode image:', imgError);
+          }
+          
+          barcodeDoc = await Barcode.create({
+            barcodeNumber: barcode,
+            format: 'CODE-128',
+            productId: product._id,
+            productSku: product.skuCode,
+            productName: product.productName,
+            status: 'assigned',
+            generatedBy: req.user.id,
+            barcodeImageUrl: barcodeImageUrl,
+            metadata: {
+              sequence: parseInt(barcode.slice(1, 9)) || 0
+            }
+          });
+        }
+        product.barcode = barcode;
+      }
+      // If barcode is unchanged, do nothing
+    }
 
     // Update category if changed
     if (category && category !== oldCategory) {
@@ -895,7 +1211,7 @@ const updateProduct = async (req, res) => {
       updatedAt: new Date()
     };
 
-    // Handle category change
+    // Handle category change (keep your existing category update logic)
     if (category && category !== oldCategory) {
       // Remove from old category
       await Category.findByIdAndUpdate(
@@ -983,7 +1299,6 @@ const updateProduct = async (req, res) => {
       
       // Handle subcategory count updates if changed
       if (oldSubcategoryId !== newSubcategoryId) {
-        // Decrement old subcategory
         if (oldSubcategoryId) {
           await Category.findOneAndUpdate(
             { 
@@ -993,8 +1308,6 @@ const updateProduct = async (req, res) => {
             { $inc: { 'subcategories.$.productCount': -1 } }
           );
         }
-        
-        // Increment new subcategory
         if (newSubcategoryId) {
           await Category.findOneAndUpdate(
             { 
@@ -1006,7 +1319,6 @@ const updateProduct = async (req, res) => {
         }
       }
       
-      // Handle child subcategory count updates if changed
       if (oldChildSubcategoryId !== newChildSubcategoryId) {
         if (oldChildSubcategoryId && oldSubcategoryId) {
           await Category.findOneAndUpdate(
@@ -1024,7 +1336,6 @@ const updateProduct = async (req, res) => {
             }
           );
         }
-        
         if (newChildSubcategoryId && newSubcategoryId) {
           await Category.findOneAndUpdate(
             { 
